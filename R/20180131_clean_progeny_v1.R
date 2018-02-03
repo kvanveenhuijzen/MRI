@@ -162,7 +162,7 @@ minmax <- function(x, date = FALSE){
 #minmax(rename1_date$Maximum[1])
 
 #geleend van janitor package, maar geen zin om het hele package te installeren en te laden, dus zo gedaan
-excel_numeric_to_date <- function (date_num, date_system = ifelse(modern_Mac == TRUE, "modern", "mac pre-2011")) 
+excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == TRUE, "modern", "mac pre-2011")) 
 {
   if (!is.numeric(date_num)) {
     stop("argument `date_num` must be of class numeric")
