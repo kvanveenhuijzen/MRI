@@ -24,7 +24,7 @@
 DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI"
 
 #source settings
-source(paste0(DIR1, "/R/Settings.R"))
+source(paste0(DIR1, "/R/settings.R"))
 
 ###############
 ## FUNCTIONS ##
