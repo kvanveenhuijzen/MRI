@@ -291,3 +291,5 @@ mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 
 #check regex ################ pas later doen
 
+
+
