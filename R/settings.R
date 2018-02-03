@@ -1,4 +1,6 @@
-#settings
+# settings
+
+# COMMENT: variables in settings must be spelled with only CAPITALS
 
 # modern Mac (nodig om dates in Excel file goed te lezen)
 # een niet moderne Mac is gedefinieerd van voor 2011
