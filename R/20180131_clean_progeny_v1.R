@@ -3,7 +3,9 @@
 # date: 31 January 2018
 
 # TODO:
-# 1. testhat inbouwen
+# 1. testhat inbouwen (issue voor gemaakt)
+# 2. order in longitudinale data maken (nadat dates gecontroleerd zijn).
+
 
 ######################
 ##  ARCHITECTURE  ####
@@ -38,6 +40,14 @@ source(paste0(DIR1, "/R/settings.R"))
 source(paste0(DIR1, "/R/functions.R"))
 
 
+#######################
+####  DEFINITIONS  ####
+#######################
+
+# source definitions
+source(paste0(DIR1, "/R/definitions.R"))
+
+
 ################################
 ####  LOAD DATA & PACKAGES  ####
 ################################
@@ -45,10 +55,12 @@ source(paste0(DIR1, "/R/functions.R"))
 # load packages
 library(readxl)
 library(data.table)
+library(tidyr)
 
 # load data
-d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180130_progeny_v1.xlsx")))
-format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx")))
+d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180130_progeny_v2.xlsx")))
+format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 1))
+dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 2))
 
 
 ##########################
@@ -61,8 +73,27 @@ d2 <- copy(d1)
 # detele in format1 alle rijen waarin 1 # staat
 format2 <- format1[ifelse(rowSums(format1 == "#", na.rm = TRUE)>0, FALSE, TRUE),]
 
+# zet Rename van identifier op ALSnr
+format2[Group=="ID", Rename:="ALSnr"]
+
+#maak long format van dependencies (sheet 2 in format1.xlsx)
+dep2 <- copy(dep1)
+colnames(dep2)[1] <- "to"
+dep2 <- data.table(na.omit(gather(dep2, from, value, -to)))
+dep2 <- dep2[, .(from, to, value)]
+dep2$uitleg <- ifelse(dep2$value == -1, "'from' komt eerder dan 'to'.",
+                      ifelse(dep2$value == 1, "'from' komt later dan 'to'.", "FOUT??"))
+
 # maak meldingen file
 mm <- list("MELDINGEN")
+
+# check of alle ID's uniek zijn
+uniq1 <- na.omit(d2[, format2[Group=="ID"]$Original, with = FALSE])
+if(!identical(nrow(uniq1), nrow(unique(uniq1)))){
+  stop("Identifier is niet uniek!! Oplossen voordat je verder gaat.")
+}else{
+  mm <- c(mm, "GOED: Identifier (ALSnr) is uniek.")
+}
 
 
 ##########################
@@ -164,11 +195,131 @@ reason1 <- "de waarde van deze variabele(n) niet voorkwam in de 'possible values
 mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 
 
-#######################
-####  CHECK REGEX  ####
-#######################
+########################
+####  CHECK  REGEX  ####
+########################
 
-#check regex ################ pas later doen
+# vul eerst even alle ALSnrs (=ID)
+#  ik ga er hierbij van uit dat ALSnr nooit missing is (en zo is het ook ingesteld in de query van 20180130_MRI1)
+ID1 <- rename1[Group=="ID"]
+if(nrow(ID1)!=1){
+  stop("Er is >1 of <1 Identifier aangegeven in rename1")
+}
+d2[, ALSnr_NA:=is.na(ALSnr)]
+d2 <- fill(d2, ALSnr)
+
+# verwijder rijen waarvan ALSnr niet aan Regex voldoet (indien Regex aanwezig is)
+if(!is.na(ID1$Regex)){
+  #old1 <- countNA(d2, cols = "ALSnr")
+  old1 <- nrow(d2)
+  d2 <- d2[grepl(ID1$Regex, ALSnr)]
+  d2[, ALSnr:=factor(ALSnr)] # ik ga er hier voor het gemak even vanuit dat de identifier altijd factor is
+  new1 <- nrow(d2)
+  mm <- c(mm, paste0("In d2, ", old1-new1, "/", old1, " (", roundHJ1((old1-new1)/old1*100, 2), "%)",
+                     " rijen verwijderd omdat identifier (i.e. ALSnr) niet voldeed aan de opgegeven regex."))
+  #new1 <- countNA(d2, cols = "ALSnr")
+}
+
+# check overige regex (indien aanwezig)
+regex1 <- rename1[!is.na(Regex)][Rename!="ALSnr"]
+if(nrow(regex1)>0){
+  old1 <-countNA(d2, cols = "all")
+  for (x in 1:nrow(regex1)){
+    val1 <- d2[,get(regex1$Rename[x])]
+    set(d2, i = grep(regex1$Regex[x], val1, invert = TRUE), j = regex1$Rename[x], value = NA)
+  }
+  new1 <- countNA(d2, cols = "all")
+  reason1 <- "de waarde van deze variabele(n) niet voorkwam in de gespecificeerde 'regex' (zie format1)."
+  mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
+}
+
+
+####################################
+####  CHECK LONG vs CROSS DATA  ####
+####################################
+
+# maak overzicht met long data
+long1 <- d2[ALSnr_NA==TRUE, ] #potential long dataset
+long2 <- long1[, colSums(!is.na(long1)) > 0, with = FALSE] # long dataset
+
+# maak in long format groepen van data die bij elkaar hoort
+a1 <- which(!colnames(long2) %in% c("ALSnr", "ALSnr_NA"))
+l1 <- lapply(a1, function(x){
+  out1 <- which(!is.na(long2[, ..x]))
+  return(out1)
+})
+com1a <- apply(combn(seq_along(l1), 2), 2, function(n) l1[[n[1]]] %in% l1[[n[2]]])
+com1b <- combn(seq_along(l1), 2)
+com1c <- com1b[,which(unlist(lapply(com1a, function(i){length(which(i==TRUE))}))>0)]
+
+# gebruik even igraph om connected components uit te rekenen
+g1 <- igraph::graph_from_edgelist(t(com1c), directed=FALSE)
+comp1 <- igraph::components(g1)
+gr1 <- unname(igraph::groups(comp1))
+
+# groepeer data
+l2 <- lapply(gr1, function(x){
+  coln0 <- colnames(long2)[a1[x]]
+  group1 <- unique(rename1[Rename %in% coln0, Group])
+  if(length(group1)!=1){
+    group1 <- NULL
+    stop("Sommige longitudinale data lijkt toegewezen te zijn aan >1 group (in format1)")
+  }
+  
+  coln1 <- c("ALSnr", coln0)
+  old1 <- nrow(long2)
+  long3 <- long2[, coln1, with = FALSE]
+  long3 <- long3[rowSums(!is.na(long3))>1]
+  new1 <- nrow(long3)
+  meld1 <- paste0("In longitudinale ", group1, " data, ", old1-new1, "/", old1, " (", roundHJ1((old1-new1)/old1*100),"%) ",
+                  "rijen verwijderd omdat ze enkel missings bevatten. Het kan hierbij een vrij hoog ",
+                  "percentage zijn van rijen die verwijderd zijn. Dit komt (deels) doordat in het Progeny data ",
+                  "format, de longitudinale data getrapt naast elkaar staat. ",
+                  "Dit leidt automatisch to relatief veel lege cellen. Het is belangrijker om te letten op het ",
+                  "percentage wat je over houdt.")
+  out1 <- list(group1, meld1, long3)
+  return(out1)
+})
+mm <- c(mm, lapply(l2, "[[", 2))
+
+# long data
+long3 <- lapply(l2, "[[", 3)
+names(long3) <- unlist(lapply(l2, "[[", 1))
+
+# cross data
+coln1 <- unlist(unname(lapply(long3, function(x) colnames(x))))
+coln1 <- coln1[-which(coln1=="ALSnr")]
+coln2 <- colnames(d2)[!colnames(d2) %in% coln1]
+d3 <- d2[, ..coln2]
+d3 <- d3[rowSums(!is.na(d3))>2,] # >2 omdat ALSnr en ALSnr_NA er altijd in staan
+
+
+##############################
+####  SUMSCORES ALSFRS-R  ####
+##############################
+
+# maak vraag 5 van de ALSFRS-R in orde
+DEFINITION_q5(A = "ALSFRS_q5a", B = "ALSFRS_q5b", data = long3$ALSFRS_R)
+
+# maak sumsores
+long3$ALSFRS_R[, ALSFRS_score:=rowSums(long3$ALSFRS_R[, c(DEFINITION_Q_ALSFRSR())])]
+
+# check nog of 0 <= ALSFRS_score <= 48 is
+# (ip niet nodig omdat dit al door format1.xlsx gedekt wordt, maar voor de zekerheid ingebouwd)
+old1 <- countNA(long3$ALSFRS_R, cols = "all")
+set(long3$ALSFRS_R, i = which(long3$ALSFRS_R$ALSFRS_score>48), j = DEFINITION_Q_ALSFRSR(), value = NA)
+set(long3$ALSFRS_R, i = which(long3$ALSFRS_R$ALSFRS_score<0), j = DEFINITION_Q_ALSFRSR(), value = NA)
+new1 <- countNA(long3$ALSFRS_R, cols = "all")
+mm <- c(mm, list(summaryNA(old = old1, new = new1, name_data = "long3$ALSFRS_R")))
+
+# neem alleen unieke rijen (date zit er ook in) en orden ALSFRS-R
+# hoog is vroeg (-1 dus)
+long3$ALSFRS_R <- unique(long3$ALSFRS_R)
+setorderv(x = long3$ALSFRS_R, cols = c("ALSnr", "DoALSFRS", "ALSFRS_score"), order = c(1, 1, -1), na.last = TRUE)
+mm <- c(mm, paste0("MELDING: Longitudinale data van ALSFRS geordend: ",
+                   "Eerste ALSFRS (qua datum) of anders hoogste ALSFRS (qua score) bovenaan. ",
+                   "Omdat er mogelijk later nog datums op NA gezet worden nog geen kolom met order toegevoegd."))
+
 
 
 
