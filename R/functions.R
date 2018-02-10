@@ -26,8 +26,9 @@ setclass2 <- function(dt, cols, new_class){
     dt[, (coln1) := lapply(.SD, class1), .SDcols = coln1][]
   }
   #merge weer met kolommen die niet in cols voorkwamen
-  if(ncol(dt0)>0){
-    dt <- cbind(dt, dt0[, which(!colnames(dt0) %in% colnames(dt)), with = FALSE])
+  coln2 <- which(!colnames(dt0) %in% colnames(dt))
+  if(length(coln2)>0){
+    dt <- cbind(dt, dt0[, coln2, with = FALSE])
   }
   return(dt)
 }
