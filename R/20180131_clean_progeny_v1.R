@@ -26,7 +26,7 @@
 ####################
 
 # package dir
-DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI"
+DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
 
 # source settings
 source(paste0(DIR1, "/R/settings.R"))
