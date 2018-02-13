@@ -152,3 +152,7 @@ excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == 
     stop("argument 'created' must be one of 'mac pre-2011' or 'modern'")
   }
 }
+
+# functie om list van data.tables (ook >2 data.tables) te mergen
+# gebruik met Reduce(merge_list, list_of_dt)
+merge_list <- function(...) merge(..., all = TRUE)
