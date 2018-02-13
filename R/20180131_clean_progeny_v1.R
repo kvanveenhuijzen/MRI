@@ -321,5 +321,46 @@ mm <- c(mm, paste0("MELDING: Longitudinale data van ALSFRS geordend: ",
                    "Omdat er mogelijk later nog datums op NA gezet worden nog geen kolom met order toegevoegd."))
 
 
+#######################
+####  CHECK DATES  ####
+#######################
+
+#make dependencies uniform
+dep2a <- dep2[value==1]
+setcolorder(dep2a, c("to", "from", setdiff(names(dep2a), c("from", "to"))))
+setnames(dep2a, old = c("to", "from"), new = c("from", "to"))
+dep2a[, value:=-1]
+dep3 <- rbind(dep2[value!=1], dep2a)[, uitleg:="'from' komt eerder dan 'to'."][]
+if(all(dep3$value==-1)==FALSE){
+  stop("In dep3 zijn niet alle values -1. Oplossen voordat je verder gaat.")
+}
+
+# merge cross & long data (tijdelijk)
+key1 <- lapply(long3, function(x){
+  setkey(x, ALSnr)
+})
+long4 <- Reduce(merge_list, key1)
+setkey(d3, ALSnr)
+merge1 <- merge(d3, long4, all.x = TRUE)
+
+# zet datums op NA als er niet aan de voorwaarden voldaan wordt (zoals vastgelegd in
+#  dep2 en dep3 (en dus sheet 2 van format_v1.xlsx))
+#test1 <- lapply(1:nrow(dep3), function(x){
+#  out1 <- merge1[dep3$from[x] > dep3$to[x], which = TRUE]
+#  out2 <- merge1[out1, ]
+#  return(out1)
+#})
+
+#onderstaande nog niet af!!
+old1 <- countNA(merge1, cols = "all")
+for (x in 1:nrow(dep3)){
+  set(merge1, i = merge1[dep3$from[x] > dep3$to[x], which = TRUE], j = dep3$to[x], value = NA)
+}
+new1 <- countNA(merge1, cols = "all")
+summaryNA(old1, new1, name_data = "merge1")
+
+
+
+# orden longtidunale data (voeg order toe)
 
 
