@@ -4,6 +4,7 @@
 ## 1. restructure
 ## 2. write manual
 
+
 # zelfde als setnames, maar dan voor classes van kolommen
 # dt = data.table
 # cols = vector met kolomnamen of kolomnummers die je wilt aanpassen
@@ -33,6 +34,7 @@ setclass2 <- function(dt, cols, new_class){
   return(dt)
 }
 
+
 # function for count changes
 # values for cols:
 ## NULL             geeft 1 getal terug (over hele vector of dataframe)
@@ -52,6 +54,7 @@ countNA <- function(data, cols=NULL){
   }
 }
 # countNA(bla1, cols = c("T", "W", "disp")) #voorbeeld
+
 
 # functie om summary over NA's te geven
 summaryNA <- function(old, new, count_var = "orig_Nrow", name_data = "data", reason = "..."){
@@ -79,11 +82,13 @@ summaryNA <- function(old, new, count_var = "orig_Nrow", name_data = "data", rea
   }
 }
 
+
 #voor non-p-values (functie voor afronden)
 roundHJ1 <- function(x, digits=1){
   out1 <- sprintf(paste0("%.", digits, "f"), round(x, digits = digits))
   return(out1)
 }
+
 
 # functie om makkelijker direct uit summaryNA toe te voegen aan mm (ook overzichten in bijv. data.table format)
 # good alleen gebruiken als x een vector is
@@ -103,6 +108,7 @@ add_mm <- function(x, melding = NULL){
   }
 }
 
+
 #functie om functies te herkennen in format1
 recog_func <- function(x){
   pos1 <- grep("^f\\(.*\\)$", x)
@@ -111,6 +117,7 @@ recog_func <- function(x){
   return(func1)
 }
 #recog_func(rename1$Maximum)
+
 
 #functie om minimum en maximum te contoleren
 minmax <- function(x, date = FALSE){
@@ -136,6 +143,7 @@ minmax <- function(x, date = FALSE){
 }
 #minmax(rename1_date$Maximum[1])
 
+
 #geleend van janitor package, maar geen zin om het hele package te installeren en te laden, dus zo gedaan
 excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == TRUE, "modern", "mac pre-2011")) 
 {
@@ -154,8 +162,8 @@ excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == 
 }
 
 
-
 # Vind de langste overeenkomende character string
+############ @HJ: deze functie nog reviewen
 cmn_string <- function(x,y) { 
   matches <- gregexpr("M+", drop(attr(adist(x, y, counts=TRUE), "trafos")))[[1]];
   insertions <- gregexpr("I+", drop(attr(adist(x, y, counts=TRUE), "trafos")))[[1]];
