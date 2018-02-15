@@ -12,23 +12,25 @@
 ######################
 
 # to complete #############-
-# 1. rename
-# 2. reclassify
-# 3. check minimum
-# 4. check maximum
-# 5. check possible values
-# 6. check regex
-# 7. cross vs long data
-# 8. wide to long format
+# 1.  rename
+# 2.  reclassify
+# 3.  check minimum
+# 4.  check maximum
+# 5.  check possible values
+# 6.  check regex
+# 7.  cross vs long data
+# 8.  wide to long format
+# 9.  sumscores ALSFRS-R (tzt verder naar beneden plaatsen)
+# 10. check dates
+
 
 ####################
 ####  SETTINGS  ####
 ####################
 
 # package dir
-
-#DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
-DIR1 <- "/Users/htan4/Documents/Rprojects/MRI" # Harold
+DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
+#DIR1 <- "/Users/htan4/Documents/Rprojects/MRI" # Harold
 
 # source settings
 source(paste0(DIR1, "/R/settings.R"))
@@ -60,8 +62,7 @@ library(data.table)
 library(tidyr)
 
 # load data
-#d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180130_progeny_v2.xlsx"))) # Zonder ECAS
-d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180214_progeny.xlsx"), guess_max = 100000)) 
+d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180214_progeny.xlsx"), col_types = "text"))
 format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 1))
 dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 2))
 
@@ -129,12 +130,12 @@ mm <- c(mm, "GOED: kolomnamen in d2 aangepast (conform format2).")
 ####  ADJUST CLASS ####
 #######################
 
-#adjust class
+# adjust class
 old1 <- countNA(d2, cols = "all")
 d2 <- setclass2(d2, cols = rename1[!is.na(Class)]$Rename, new_class = rename1[!is.na(Class)]$Class)
 new1 <- countNA(d2, cols = "all")
 
-#melding over adjust class in mm
+# melding over adjust class in mm
 summary1 <- summaryNA(old = old1, new = new1, count_var = "orig_Nrow", name_data = "d2",
                       reason = "de opgelegde dataclass niet overeenkwam met de werkelijke class (=FOUT)")
 melding1 <- ifelse(is.vector(summary1), "GOED: ",
@@ -313,15 +314,17 @@ list1 <- lapply(1:nrow(mat1),function(i){
 subgr1 <- unique(list1)
 
 # Wat zijn de common strings in elke groep
-sgstems1 <-lapply(subgr1,function(i){
+sgstems1 <- lapply(subgr1, function(i){
   if (length(i) <=1){
     return(NA)
   }
-  pairs1 <- combn(unlist(i),2)
-  stems1 <- apply(pairs1,2,function(j){ return(cmn_string(x=j[1],y=j[2]))})
+  pairs1 <- combn(unlist(i), 2)
+  stems1 <- apply(pairs1, 2, function(j){
+    return(cmn_string(x = j[1], y = j[2]))
+  })
   
   
-  if( length(unique(stems1)) > 1){  # Als er meerdere common strings zijn, is de groepering niet juist
+  if(length(unique(stems1)) > 1){  # Als er meerdere common strings zijn, is de groepering niet juist
     return(NA)
   } else {
     return(unique(stems1))
@@ -331,34 +334,37 @@ sgstems1 <-lapply(subgr1,function(i){
 names(subgr1) <- unlist(sgstems1)
 sgstems2 <- unlist(unique(sgstems1))
 
-# Check of elke groep bij een 'supergroep' hoort, op basis van terugkerende overlaps. 
-mat2 <- sapply(sgstems2,function(i){
-  stems <- sapply(sgstems2, cmn_string,x=i)
-  stems2 <- ifelse(stems=="",NA,stems)
+############## @HJ t/m hier gecontroleerd, verder naar beneden het blok "WIDE TO LONG FORMAT" nog controleren
+# Check of elke groep bij een 'supergroep' hoort, op basis van terugkerende overlaps.
+mat2 <- sapply(sgstems2, function(i){
+  stems <- sapply(sgstems2, cmn_string, x = i)
+  stems2 <- ifelse(stems=="", NA, stems)
   return(stems2)
 })
 diag(mat2) <- NA
 
 # Wat is de meest voorkomende overlap? Dit is de mogelijke supergroep van de betreffende groep
 # VERBETERPUNT?: Wel een gevaarlijke assumptie, andere optie zou zijn om de top n of alle overlaps te checken
-tab1 <-apply(mat2,1,table)
-supgr1 <-sapply(tab1,function(i){return(names(i)[which.max(i)])})
+tab1 <- apply(mat2, 1, table)
+supgr1 <- sapply(tab1, function(i){
+  return(names(i)[which.max(i)])
+})
 
 # Maak Hierarchy tabel:superGroup > subGroup > Var
-hier <- data.table(subGroup=names(supgr1),superGroup=supgr1)
-hier2 <- rbindlist(lapply(seq_along(subgr1), function(i){ 
-  df <-data.table(Var=subgr1[[i]])
+hier <- data.table(subGroup = names(supgr1), superGroup = supgr1)
+hier2 <- rbindlist(lapply(seq_along(subgr1), function(i){
+  df <- data.table(Var = subgr1[[i]])
   df$subGroup <- names(subgr1[i])
   return(df)
   }))
-hier3 <- hier[hier2,nomatch=0,on="subGroup"]
+hier3 <- hier[hier2, nomatch=0, on = "subGroup"]
 
 # Check if superGroup matches Group column in format 
-hier3[,trueGroup:=sapply(seq_along(hier3$Var), function(i){
+hier3[, trueGroup:=sapply(seq_along(hier3$Var), function(i){
   hVar <- hier3$Var[i]
   hGroup <- hier3$superGroup[i]
   fVar <- format2[which(format2$Rename==hVar)]
-  trueGroup <- agrep(paste0("^",hGroup,"$"),fVar$Group, fixed=F,value = T)
+  trueGroup <- agrep(paste0("^", hGroup, "$"), fVar$Group, fixed = FALSE, value = TRUE)
   return(trueGroup)
 })]
 
@@ -367,37 +373,36 @@ hier4 <- hier3[lengths(trueGroup) > 0L,]
 
 # Per unieke trueGroup, kijken welke variabelen erbij horen,
 # Resulteert in een lijst van long format data.tables
-wl_transform1 <- sapply(unlist(unique(hier4[,trueGroup])),function(i){
+wl_transform1 <- sapply(unlist(unique(hier4[, trueGroup])), function(i){
   dt1 <- hier4[trueGroup==i,]
-  wlong1 <- d3[,c("ALSnr", dt1[,Var]),with=F]
+  wlong1 <- d3[, c("ALSnr", dt1[,Var]), with = FALSE]
   
   # Groepeer per subgroup voor melt, deze moeten elk hun eigen kolom krijgen.
-  subgroups1 <- unlist(unique(dt1[,subGroup]))
-  mvars <- lapply(unique(dt1[,subGroup]), grep,x=names(wlong1))
+  subgroups1 <- unlist(unique(dt1[, subGroup]))
+  mvars <- lapply(unique(dt1[, subGroup]), grep, x = names(wlong1))
   
   # Op basis van mvars, kolommen genereren
-  wlong2 <- melt(wlong1,measure.vars=mvars, 
-                 variable.name = paste0(i,"_fu"),value.name = subgroups1 )
+  wlong2 <- melt(wlong1, measure.vars = mvars, 
+                 variable.name = paste0(i, "_fu"), value.name = subgroups1)
   
   # Check of kolommen uit de supergroep overgeslagen worden
-  dt2 <- format2[Group==i,]
-  missedmembers <- grep(paste(dt1$Var,collapse="|"),dt2$Rename,invert = T)
-  meld1 <- paste0("Variabelen uit de formattabel groep ",i," worden herkend als longitudinale data met de",
-                  " subgroepen: ",paste(subgroups1, collapse = ", "))
+  dt2 <- format2[Group==i, ]
+  missedmembers <- grep(paste(dt1$Var, collapse = "|"), dt2$Rename, invert = TRUE)
+  meld1 <- paste0("Variabelen uit de formattabel groep ", i ," worden herkend als longitudinale data met de",
+                  " subgroepen: ", paste(subgroups1, collapse = ", "))
   if (length(missedmembers) > 0){
-    meld1 <- c(meld1,paste0("LET OP: Volgende variabelen horen wel bij de groep ",i," maar worden niet",
+    meld1 <- c(meld1, paste0("LET OP: Volgende variabelen horen wel bij de groep ", i, " maar worden niet",
                     " meegenomen in de longitudinale tabel: ", paste(missedmembers, collapse = ", ")))
   }
   
-  
   out1 <- list(wlong2, meld1)
   return(out1)
-}, simplify = F, USE.NAMES = T)
+}, simplify = FALSE, USE.NAMES = TRUE)
 
-wlong_list1 <- lapply(wl_transform1, `[[`,1)
-wlong_mm1 <- lapply(wl_transform1, `[[`, 2)
+wlong_list1 <- lapply(wl_transform1, "[[", 1)
+wlong_mm1 <- lapply(wl_transform1, "[[", 2)
 names(wlong_mm1) <- NULL
-mm <- c(mm,wlong_mm1)
+mm <- c(mm, wlong_mm1)
 
 
 ##############################
