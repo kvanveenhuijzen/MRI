@@ -310,26 +310,26 @@ list1 <- lapply(1:nrow(mat1),function(i){
   col1 <- which(mat1[i,] <=1)
   return(names(col1))
 })
-
 groups1 <- unique(list1)
-test1 <- drop(attr(adist("ECAS_total1",groups1[[15]], counts=T), "trafos"))
 
-
-
+# Wat zijn de common strings in elke groep
 groupstems1 <-lapply(groups1,function(i){
   if (length(i) <=1){
-    return(NULL)
+    return(NA)
   }
   pairs1 <- combn(unlist(i),2)
   stems1 <- apply(pairs1,2,function(j){ return(cmn_string(x=j[1],y=j[2]))})
   if( length(unique(stems1)) > 1){
-    return(NULL)
+    return(NA)
   } else {
     return(unique(stems1))
   }
 })
+
+names(groups1) <- unlist(groupstems1)
 groupstems2 <- unlist(unique(groupstems1))
 
+# Check of elke groep bij een 'supergroep' hoort, op basis van terugkerende overlaps. 
 mat2 <- sapply(groupstems2,function(i){
   print(i)
   stems <- sapply(groupstems2, cmn_string,x=i)
@@ -337,11 +337,49 @@ mat2 <- sapply(groupstems2,function(i){
   return(stems2)
 })
 diag(mat2) <- NA
+
+# Wat is de meest voorkomende overlap? Dit is de mogelijke supergroep van de betreffende groep
 tab1 <-apply(mat2,1,table)
 superGroup <-sapply(tab1,function(i){return(names(i)[which.max(i)])})
 
+# Maak Hierarchy tabel:superGroup > Group > Var
+hier <- data.table(Group=names(superGroup),superGroup=superGroup)
+hier2 <- rbindlist(lapply(seq_along(groups1), function(i){ 
+  df <-data.table(Var=groups1[[i]])
+  df$Group <- names(groups1[i])
+  return(df)
+  }))
+hier3 <- hier[hier2,nomatch=0,on="Group"]
 
+# Check if superGroup matches Group column in format 
+hier3[,trueGroup:=sapply(seq_along(hier3$Var), function(i){
+  hVar <- hier3$Var[i]
+  hGroup <- hier3$superGroup[i]
+  fVar <- format2[which(format2$Rename==hVar)]
+  trueGroup <- agrep(paste0("^",hGroup,"$"),fVar$Group, fixed=F,value = T)
+  return(trueGroup)
+})]
 
+# To do: omgekeerde check inbouwen. zoals: "Perhaps you forgot this variables:", als 
+# dezelfde group in format1 niet wordt gematcht. 
+
+# filter rijen weg waar agrep --> character(0) is
+hier4 <- hier3[lengths(trueGroup)>0L,]
+
+# Per unieke trueGroup, kijken welke variabelen erbij horen,
+# Resulteert in een lijst van long format data.tables
+wlong_list <- sapply(unlist(unique(hier4[,trueGroup])),function(i){
+  dt1 <- hier4[trueGroup==i,]
+  wlong1 <- d3[,c("ALSnr", dt1[,Var]),with=F]
+  
+  # Groepeer per subgroup voor melt, deze moeten elk hun eigen kolom krijgen.
+  mvars <- lapply(unique(dt1[,Group]), grep,x=names(wlong1))
+  
+  # Op basis van mvars, kolommen genereren
+  wlong2 <- melt(wlong1,measure.vars=mvars, 
+                 variable.name = paste0(i,"_fu"),value.name = unique(dt1[,Group]))
+  return(wlong2)
+}, simplify = F, USE.NAMES = T)
 
 
 ##############################
