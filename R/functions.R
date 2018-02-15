@@ -154,6 +154,7 @@ excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == 
 }
 
 
+
 # Vind de langste overeenkomende character string
 cmn_string <- function(x,y) { 
   matches <- gregexpr("M+", drop(attr(adist(x, y, counts=TRUE), "trafos")))[[1]];
@@ -169,4 +170,9 @@ cmn_string <- function(x,y) {
   longest_cmn_sbstr  <- substring(x, index_longest , index_longest + length_longest - 1)
   return(longest_cmn_sbstr ) 
 }
+
+
+# functie om list van data.tables (ook >2 data.tables) te mergen
+# gebruik met Reduce(merge_list, list_of_dt)
+merge_list <- function(...) merge(..., all = TRUE)
 
