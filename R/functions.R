@@ -164,7 +164,7 @@ cmn_string <- function(x,y) {
   length_longest <- lengths[which_longest]
   
   if (all(insertions > 0)  &  sum(index_longest > insertions) > 0) {
-    index_longest <- index_longest-sum(attr(insertions,"match.length")[1:sum(index_longest > insertions)])
+    index_longest <- index_longest-sum(attr(insertions,"match.length")[index_longest > insertions])
   }
   longest_cmn_sbstr  <- substring(x, index_longest , index_longest + length_longest - 1)
   return(longest_cmn_sbstr ) 
