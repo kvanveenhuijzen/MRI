@@ -302,7 +302,6 @@ d3 <- d3[rowSums(!is.na(d3))>2,] # >2 omdat ALSnr en ALSnr_NA er altijd in staan
 
 # Maak adist matrix van colnames
 mat1 <- adist(colnames(d3))
-#mat1[upper.tri(mat1)] <- NA
 colnames(mat1) <- colnames(d3)
 
 # Maak groepen met adist =<1
@@ -310,46 +309,48 @@ list1 <- lapply(1:nrow(mat1),function(i){
   col1 <- which(mat1[i,] <=1)
   return(names(col1))
 })
-groups1 <- unique(list1)
+subgr1 <- unique(list1)
 
 # Wat zijn de common strings in elke groep
-groupstems1 <-lapply(groups1,function(i){
+sgstems1 <-lapply(subgr1,function(i){
   if (length(i) <=1){
     return(NA)
   }
   pairs1 <- combn(unlist(i),2)
   stems1 <- apply(pairs1,2,function(j){ return(cmn_string(x=j[1],y=j[2]))})
-  if( length(unique(stems1)) > 1){
+  
+  
+  if( length(unique(stems1)) > 1){  # Als er meerdere common strings zijn, is de groepering niet juist
     return(NA)
   } else {
     return(unique(stems1))
   }
 })
 
-names(groups1) <- unlist(groupstems1)
-groupstems2 <- unlist(unique(groupstems1))
+names(subgr1) <- unlist(sgstems1)
+sgstems2 <- unlist(unique(sgstems1))
 
 # Check of elke groep bij een 'supergroep' hoort, op basis van terugkerende overlaps. 
-mat2 <- sapply(groupstems2,function(i){
-  print(i)
-  stems <- sapply(groupstems2, cmn_string,x=i)
+mat2 <- sapply(sgstems2,function(i){
+  stems <- sapply(sgstems2, cmn_string,x=i)
   stems2 <- ifelse(stems=="",NA,stems)
   return(stems2)
 })
 diag(mat2) <- NA
 
 # Wat is de meest voorkomende overlap? Dit is de mogelijke supergroep van de betreffende groep
+# VERBETERPUNT?: Wel een gevaarlijke assumptie, andere optie zou zijn om de top n of alle overlaps te checken
 tab1 <-apply(mat2,1,table)
-superGroup <-sapply(tab1,function(i){return(names(i)[which.max(i)])})
+supgr1 <-sapply(tab1,function(i){return(names(i)[which.max(i)])})
 
-# Maak Hierarchy tabel:superGroup > Group > Var
-hier <- data.table(Group=names(superGroup),superGroup=superGroup)
-hier2 <- rbindlist(lapply(seq_along(groups1), function(i){ 
-  df <-data.table(Var=groups1[[i]])
-  df$Group <- names(groups1[i])
+# Maak Hierarchy tabel:superGroup > subGroup > Var
+hier <- data.table(subGroup=names(supgr1),superGroup=supgr1)
+hier2 <- rbindlist(lapply(seq_along(subgr1), function(i){ 
+  df <-data.table(Var=subgr1[[i]])
+  df$subGroup <- names(subgr1[i])
   return(df)
   }))
-hier3 <- hier[hier2,nomatch=0,on="Group"]
+hier3 <- hier[hier2,nomatch=0,on="subGroup"]
 
 # Check if superGroup matches Group column in format 
 hier3[,trueGroup:=sapply(seq_along(hier3$Var), function(i){
@@ -360,26 +361,42 @@ hier3[,trueGroup:=sapply(seq_along(hier3$Var), function(i){
   return(trueGroup)
 })]
 
-# To do: omgekeerde check inbouwen. zoals: "Perhaps you forgot this variables:", als 
-# dezelfde group in format1 niet wordt gematcht. 
-
 # filter rijen weg waar agrep --> character(0) is
-hier4 <- hier3[lengths(trueGroup)>0L,]
+hier4 <- hier3[lengths(trueGroup) > 0L,]
 
 # Per unieke trueGroup, kijken welke variabelen erbij horen,
 # Resulteert in een lijst van long format data.tables
-wlong_list <- sapply(unlist(unique(hier4[,trueGroup])),function(i){
+wl_transform1 <- sapply(unlist(unique(hier4[,trueGroup])),function(i){
   dt1 <- hier4[trueGroup==i,]
   wlong1 <- d3[,c("ALSnr", dt1[,Var]),with=F]
   
   # Groepeer per subgroup voor melt, deze moeten elk hun eigen kolom krijgen.
-  mvars <- lapply(unique(dt1[,Group]), grep,x=names(wlong1))
+  subgroups1 <- unlist(unique(dt1[,subGroup]))
+  mvars <- lapply(unique(dt1[,subGroup]), grep,x=names(wlong1))
   
   # Op basis van mvars, kolommen genereren
   wlong2 <- melt(wlong1,measure.vars=mvars, 
-                 variable.name = paste0(i,"_fu"),value.name = unique(dt1[,Group]))
-  return(wlong2)
+                 variable.name = paste0(i,"_fu"),value.name = subgroups1 )
+  
+  # Check of kolommen uit de supergroep overgeslagen worden
+  dt2 <- format2[Group==i,]
+  missedmembers <- grep(paste(dt1$Var,collapse="|"),dt2$Rename,invert = T)
+  meld1 <- paste0("Variabelen uit de formattabel groep ",i," worden herkend als longitudinale data met de",
+                  " subgroepen: ",paste(subgroups1, collapse = ", "))
+  if (length(missedmembers) > 0){
+    meld1 <- c(meld1,paste0("LET OP: Volgende variabelen horen wel bij de groep ",i," maar worden niet",
+                    " meegenomen in de longitudinale tabel: ", paste(missedmembers, collapse = ", ")))
+  }
+  
+  
+  out1 <- list(wlong2, meld1)
+  return(out1)
 }, simplify = F, USE.NAMES = T)
+
+wlong_list1 <- lapply(wl_transform1, `[[`,1)
+wlong_mm1 <- lapply(wl_transform1, `[[`, 2)
+names(wlong_mm1) <- NULL
+mm <- c(mm,wlong_mm1)
 
 
 ##############################
