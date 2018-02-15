@@ -19,7 +19,7 @@
 # 5. check possible values
 # 6. check regex
 # 7. cross vs long data
-
+# 8. wide to long format
 
 ####################
 ####  SETTINGS  ####
@@ -27,7 +27,7 @@
 
 # package dir
 #DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
-DIR1 <- "/Volumes/Promise_Pegasus/Harold/Rprojects/MRI" # Harold
+DIR1 <- "/Users/htan4/Documents/Rprojects/MRI" # Harold
 
 # source settings
 source(paste0(DIR1, "/R/settings.R"))
@@ -63,7 +63,6 @@ library(tidyr)
 d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180214_progeny.xlsx"), guess_max = 100000)) 
 format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 1))
 dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 2))
-
 
 
 ##########################
@@ -295,6 +294,54 @@ coln1 <- coln1[-which(coln1=="ALSnr")]
 coln2 <- colnames(d2)[!colnames(d2) %in% coln1]
 d3 <- d2[, ..coln2]
 d3 <- d3[rowSums(!is.na(d3))>2,] # >2 omdat ALSnr en ALSnr_NA er altijd in staan
+
+
+##############################
+####  WIDE TO LONG FORMAT ####
+##############################
+
+# Maak adist matrix van colnames
+mat1 <- adist(colnames(d3))
+#mat1[upper.tri(mat1)] <- NA
+colnames(mat1) <- colnames(d3)
+
+# Maak groepen met adist =<1
+list1 <- lapply(1:nrow(mat1),function(i){
+  col1 <- which(mat1[i,] <=1)
+  return(names(col1))
+})
+
+groups1 <- unique(list1)
+test1 <- drop(attr(adist("ECAS_total1",groups1[[15]], counts=T), "trafos"))
+
+
+
+groupstems1 <-lapply(groups1,function(i){
+  if (length(i) <=1){
+    return(NULL)
+  }
+  pairs1 <- combn(unlist(i),2)
+  stems1 <- apply(pairs1,2,function(j){ return(cmn_string(x=j[1],y=j[2]))})
+  if( length(unique(stems1)) > 1){
+    return(NULL)
+  } else {
+    return(unique(stems1))
+  }
+})
+groupstems2 <- unlist(unique(groupstems1))
+
+mat2 <- sapply(groupstems2,function(i){
+  print(i)
+  stems <- sapply(groupstems2, cmn_string,x=i)
+  stems2 <- ifelse(stems=="",NA,stems)
+  return(stems2)
+})
+diag(mat2) <- NA
+tab1 <-apply(mat2,1,table)
+superGroup <-sapply(tab1,function(i){return(names(i)[which.max(i)])})
+
+
+
 
 
 ##############################
