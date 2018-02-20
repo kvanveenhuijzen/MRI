@@ -311,7 +311,19 @@ list1 <- lapply(1:nrow(mat1),function(i){
   col1 <- which(mat1[i,] <=1)
   return(names(col1))
 })
-subgr1 <- unique(list1)
+#subgr1 <- unique(list1)
+subgr1a <- unique(list1)
+
+# als er geen getal in de naam van de variabele staat kan het (eigenlijk) geen longitudinale meting zijn
+names1 <- unique(unlist(subgr1a))
+names2 <- grep("[0-9]", names1, value = TRUE)
+
+subgr1b <- unlist(lapply(1:length(subgr1a), function(x){
+  out1 <- length(which(names2 %in% subgr1a[[x]]))
+  out2 <- ifelse(out1==0, 0, 1)
+  return(out2)
+}))
+subgr1 <- subgr1a[which(subgr1b==1)]
 
 # Wat zijn de common strings in elke groep
 sgstems1 <- lapply(subgr1, function(i){
@@ -345,6 +357,7 @@ diag(mat2) <- NA
 
 # Wat is de meest voorkomende overlap? Dit is de mogelijke supergroep van de betreffende groep
 # VERBETERPUNT?: Wel een gevaarlijke assumptie, andere optie zou zijn om de top n of alle overlaps te checken
+# @Harold: ik zou niet n overlaps implementeren omdat een variabele per definitie maar bij 1 wide2long groep kan horen
 tab1 <- apply(mat2, 1, table)
 supgr1 <- sapply(tab1, function(i){
   return(names(i)[which.max(i)])
