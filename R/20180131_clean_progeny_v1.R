@@ -346,7 +346,6 @@ sgstems1 <- lapply(subgr1, function(i){
 names(subgr1) <- unlist(sgstems1)
 sgstems2 <- unlist(unique(sgstems1))
 
-############## @HJ t/m hier gecontroleerd, verder naar beneden het blok "WIDE TO LONG FORMAT" nog controleren
 # Check of elke groep bij een 'supergroep' hoort, op basis van terugkerende overlaps.
 mat2 <- sapply(sgstems2, function(i){
   stems <- sapply(sgstems2, cmn_string, x = i)
@@ -358,11 +357,15 @@ diag(mat2) <- NA
 # Wat is de meest voorkomende overlap? Dit is de mogelijke supergroep van de betreffende groep
 # VERBETERPUNT?: Wel een gevaarlijke assumptie, andere optie zou zijn om de top n of alle overlaps te checken
 # @Harold: ik zou niet n overlaps implementeren omdat een variabele per definitie maar bij 1 wide2long groep kan horen
+# er kunnen wel verschillende namen voorkomen in tab1 en mat2, momenteer wordt dan de naam genomen die het meeste
+# voorkomt. Dit hoeft echter niet automatisch de juiste te zijn. Hier is mogelijk nog iets te verbeteren. Bijv.
+# door al op voorhand een check te doen met rename1$Group
 tab1 <- apply(mat2, 1, table)
 supgr1 <- sapply(tab1, function(i){
   return(names(i)[which.max(i)])
 })
 
+############## @HJ t/m hier gecontroleerd, verder naar beneden het blok "WIDE TO LONG FORMAT" nog controleren
 # Maak Hierarchy tabel:superGroup > subGroup > Var
 hier <- data.table(subGroup = names(supgr1), superGroup = supgr1)
 hier2 <- rbindlist(lapply(seq_along(subgr1), function(i){
