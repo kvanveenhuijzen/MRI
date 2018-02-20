@@ -372,26 +372,24 @@ hier2 <- rbindlist(lapply(seq_along(subgr1), function(i){
   df$subGroup <- names(subgr1[i])
   return(df)
   }))
-hier3 <- hier[hier2, nomatch=0, on = "subGroup"]
+hier3 <- hier[hier2, nomatch = 0, on = "subGroup"]
 
-############## @HJ t/m hier gecontroleerd, verder naar beneden het blok "WIDE TO LONG FORMAT" nog controleren
 # Check if superGroup matches Group column in rename1 
-hier3[, trueGroup:=sapply(seq_along(hier3$Var), function(i){
-  hVar <- hier3$Var[i]
-  hGroup <- hier3$superGroup[i]
-  fVar <- rename1[which(rename1$Rename==hVar)]
-  trueGroup <- agrep(paste0("^", hGroup, "$"), fVar$Group, fixed = FALSE, value = TRUE)
-  return(trueGroup)
-})]
+rename1_w2l <- copy(rename1)[, .(Rename, Group)]
+setnames(rename1_w2l, old = c("Rename"), new = c("Var"))
+hier3 <- hier3[rename1_w2l, nomatch = 0, on = "Var"]
+hier3[, check_group:=diag(sapply(Group, grepl, superGroup, ignore.case = TRUE))]
 
-# filter rijen weg waar agrep --> character(0) is
-hier4 <- hier3[lengths(trueGroup) > 0L,]
+#check
+if(any(hier3$check_group==FALSE)){
+  stop("In data = hier3 komen superGroup en Group soms niet overeen. Oplossen voordat je verder gaat.")
+}
 
-# Per unieke trueGroup, kijken welke variabelen erbij horen,
+# Per unieke Group, kijken welke variabelen erbij horen,
 # Resulteert in een lijst van long format data.tables
-wl_transform1 <- sapply(unlist(unique(hier4[, trueGroup])), function(i){
-  dt1 <- hier4[trueGroup==i,]
-  wlong1 <- d3[, c("ALSnr", dt1[,Var]), with = FALSE]
+wl_transform1 <- sapply(unlist(unique(hier3[, Group])), function(i){
+  dt1 <- hier3[Group==i,]
+  wlong1 <- d3[, c("ALSnr", dt1[, Var]), with = FALSE]
   
   # Groepeer per subgroup voor melt, deze moeten elk hun eigen kolom krijgen.
   subgroups1 <- unlist(unique(dt1[, subGroup]))
@@ -399,26 +397,53 @@ wl_transform1 <- sapply(unlist(unique(hier4[, trueGroup])), function(i){
   
   # Op basis van mvars, kolommen genereren
   wlong2 <- melt(wlong1, measure.vars = mvars, 
-                 variable.name = paste0(i, "_fu"), value.name = subgroups1)
+                 variable.name = paste0("order_", i), value.name = subgroups1)
+  #verwijder rijen met alleen missings
+  wlong2[, count_na:=rowSums(is.na(wlong2))][]
+  wlong3 <- wlong2[count_na < length(subgroups1)]
+  
+  #maak indien mogelijk order obv date
+  date1 <- paste0("Do", i)
+  date2 <- which(colnames(wlong3)==date1)
+  if(length(date2)>0){
+    #nu alleen rekening gehouden met ALSnr en datum, later in script ook nog rekening houd met
+    # hoogte van score (indien datum mist). Hoge score is dan in het algemeen vroeger
+    # CAVE: recall bias in ECAS. Nog verder overleggen (verderop in script pas relevant).
+    # voorbeeld hieronder
+    #setorderv(x = wlong3, cols = c("ALSnr", date1, "..._score"), order = c(1, 1, -1), na.last = TRUE)
+    setorderv(x = wlong3, cols = c("ALSnr", date1), order = c(1, 1), na.last = TRUE)
+    
+    #verwijder kolom met order (omdat het beter is om order van datum aan te houden)
+    # order later pas toevoegen als je checks op datums afgerond hebt.
+    order1 <- paste0("order_", i)
+    wlong3[, c(order1):=NULL]
+  }
+  
+  #verwijder kolommen die niet meer nodig zijn
+  wlong3[, count_na:=NULL][]
   
   # Check of kolommen uit de supergroep overgeslagen worden
-  dt2 <- format2[Group==i, ]
+  dt2 <- rename1[Group==i, ]
   missedmembers <- grep(paste(dt1$Var, collapse = "|"), dt2$Rename, invert = TRUE)
   meld1 <- paste0("Variabelen uit de formattabel groep ", i ," worden herkend als longitudinale data met de",
                   " subgroepen: ", paste(subgroups1, collapse = ", "))
   if (length(missedmembers) > 0){
     meld1 <- c(meld1, paste0("LET OP: Volgende variabelen horen wel bij de groep ", i, " maar worden niet",
-                    " meegenomen in de longitudinale tabel: ", paste(missedmembers, collapse = ", ")))
+                             " meegenomen in de longitudinale tabel: ", paste(missedmembers, collapse = ", ")))
   }
   
-  out1 <- list(wlong2, meld1)
+  out1 <- list(wlong3, meld1)
   return(out1)
 }, simplify = FALSE, USE.NAMES = TRUE)
 
+#splits data en meldingen
 wlong_list1 <- lapply(wl_transform1, "[[", 1)
 wlong_mm1 <- lapply(wl_transform1, "[[", 2)
 names(wlong_mm1) <- NULL
 mm <- c(mm, wlong_mm1)
+
+#voeg wlong_list1 samen met long data die al in long3 zit
+long3 <- c(long3, wlong_list1)
 
 
 ##############################
