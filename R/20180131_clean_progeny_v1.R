@@ -365,7 +365,6 @@ supgr1 <- sapply(tab1, function(i){
   return(names(i)[which.max(i)])
 })
 
-############## @HJ t/m hier gecontroleerd, verder naar beneden het blok "WIDE TO LONG FORMAT" nog controleren
 # Maak Hierarchy tabel:superGroup > subGroup > Var
 hier <- data.table(subGroup = names(supgr1), superGroup = supgr1)
 hier2 <- rbindlist(lapply(seq_along(subgr1), function(i){
@@ -375,11 +374,12 @@ hier2 <- rbindlist(lapply(seq_along(subgr1), function(i){
   }))
 hier3 <- hier[hier2, nomatch=0, on = "subGroup"]
 
-# Check if superGroup matches Group column in format 
+############## @HJ t/m hier gecontroleerd, verder naar beneden het blok "WIDE TO LONG FORMAT" nog controleren
+# Check if superGroup matches Group column in rename1 
 hier3[, trueGroup:=sapply(seq_along(hier3$Var), function(i){
   hVar <- hier3$Var[i]
   hGroup <- hier3$superGroup[i]
-  fVar <- format2[which(format2$Rename==hVar)]
+  fVar <- rename1[which(rename1$Rename==hVar)]
   trueGroup <- agrep(paste0("^", hGroup, "$"), fVar$Group, fixed = FALSE, value = TRUE)
   return(trueGroup)
 })]
