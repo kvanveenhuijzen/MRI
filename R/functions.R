@@ -164,7 +164,7 @@ excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == 
 
 # Vind de langste overeenkomende character string
 ############ @HJ: deze functie nog reviewen
-cmn_string <- function(x,y) { 
+cmn_string <- function(x, y) { 
   matches <- gregexpr("M+", drop(attr(adist(x, y, counts=TRUE), "trafos")))[[1]];
   insertions <- gregexpr("I+", drop(attr(adist(x, y, counts=TRUE), "trafos")))[[1]];
   lengths<- attr(matches, 'match.length')
