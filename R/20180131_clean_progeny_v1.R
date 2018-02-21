@@ -335,7 +335,6 @@ sgstems1 <- lapply(subgr1, function(i){
     return(cmn_string(x = j[1], y = j[2]))
   })
   
-  
   if(length(unique(stems1)) > 1){  # Als er meerdere common strings zijn, is de groepering niet juist
     return(NA)
   } else {
@@ -387,19 +386,19 @@ if(any(hier3$check_group==FALSE)){
 
 # Per unieke Group, kijken welke variabelen erbij horen,
 # Resulteert in een lijst van long format data.tables
-wl_transform1 <- sapply(unlist(unique(hier3[, Group])), function(i){
+wl_transform1 <- sapply(unique(hier3[, Group]), function(i){
   dt1 <- hier3[Group==i,]
   wlong1 <- d3[, c("ALSnr", dt1[, Var]), with = FALSE]
   
   # Groepeer per subgroup voor melt, deze moeten elk hun eigen kolom krijgen.
-  subgroups1 <- unlist(unique(dt1[, subGroup]))
+  subgroups1 <- unique(dt1[, subGroup])
   mvars <- lapply(unique(dt1[, subGroup]), grep, x = names(wlong1))
   
   # Op basis van mvars, kolommen genereren
   wlong2 <- melt(wlong1, measure.vars = mvars, 
                  variable.name = paste0("order_", i), value.name = subgroups1)
   #verwijder rijen met alleen missings
-  wlong2[, count_na:=rowSums(is.na(wlong2))][]
+  wlong2[, count_na:=rowSums(is.na(wlong2))]
   wlong3 <- wlong2[count_na < length(subgroups1)]
   
   #maak indien mogelijk order obv date
