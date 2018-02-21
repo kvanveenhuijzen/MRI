@@ -60,6 +60,7 @@ source(paste0(DIR1, "/R/definitions.R"))
 library(readxl)
 library(data.table)
 library(tidyr)
+# additionally needed packages: igraph
 
 # load data
 d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180221_progeny.xlsx"), col_types = "text"))
