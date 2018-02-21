@@ -474,44 +474,74 @@ mm <- c(mm, paste0("MELDING: Longitudinale data van ALSFRS geordend: ",
 ####  CHECK DATES  ####
 #######################
 
-TEST <- FALSE
-if(TEST){
-  #make dependencies uniform
-  dep2a <- dep2[value==1]
-  setcolorder(dep2a, c("to", "from", setdiff(names(dep2a), c("from", "to"))))
-  setnames(dep2a, old = c("to", "from"), new = c("from", "to"))
-  dep2a[, value:=-1]
-  dep3 <- rbind(dep2[value!=1], dep2a)[, uitleg:="'from' komt eerder dan 'to'."][]
-  if(all(dep3$value==-1)==FALSE){
-    stop("In dep3 zijn niet alle values -1. Oplossen voordat je verder gaat.")
-  }
-  
-  # merge cross & long data (tijdelijk)
-  key1 <- lapply(long3, function(x){
-    setkey(x, ALSnr)
-  })
-  long4 <- Reduce(merge_list, key1)
-  setkey(d3, ALSnr)
-  merge1 <- merge(d3, long4, all.x = TRUE)
-  
-  # zet datums op NA als er niet aan de voorwaarden voldaan wordt (zoals vastgelegd in
-  #  dep2 en dep3 (en dus sheet 2 van format_v1.xlsx))
-  #test1 <- lapply(1:nrow(dep3), function(x){
-  #  out1 <- merge1[dep3$from[x] > dep3$to[x], which = TRUE]
-  #  out2 <- merge1[out1, ]
-  #  return(out1)
-  #})
-  
-  #onderstaande nog niet af!!
-  old1 <- countNA(merge1, cols = "all")
-  for (x in 1:nrow(dep3)){
-    set(merge1, i = merge1[dep3$from[x] > dep3$to[x], which = TRUE], j = dep3$to[x], value = NA)
-  }
-  new1 <- countNA(merge1, cols = "all")
-  summaryNA(old1, new1, name_data = "merge1")
+# make dependencies uniform
+dep2a <- dep2[value==1]
+setcolorder(dep2a, c("to", "from", setdiff(names(dep2a), c("from", "to"))))
+setnames(dep2a, old = c("to", "from"), new = c("from", "to"))
+dep2a[, value:=-1]
+dep3 <- rbind(dep2[value!=1], dep2a)[, uitleg:="'from' komt eerder dan 'to'."][]
+if(all(dep3$value==-1)==FALSE){
+  stop("In dep3 zijn niet alle values -1. Oplossen voordat je verder gaat.")
 }
 
+# merge cross & long data (tijdelijk)
+key1 <- lapply(long3, function(x){
+  setkey(x, ALSnr)
+})
+long4 <- Reduce(merge_list, key1)
+setkey(d3, ALSnr)
+merge1 <- merge(d3, long4, all.x = TRUE)
 
+# zorg dat alle namen in dep3 ook voorkomen in colnames(merge1)
+names_dep3a <- unique(unlist(dep3[, .(from, to)]))
+names_dep3b <- names_dep3a %in% colnames(merge1)
+
+# maak melding indien niet alle namen in dep3 voorkomen in colnames(merge1)
+if(any(names_dep3b==FALSE)){
+  mm <- c(mm, paste0("LET OP! ", "De volgende naam/namen (in dep3) komt/komen niet voor in de dataset (merge1): ",
+         names_dep3a[!names_dep3b], ". Dit kan er op wijzen dat de namen van de variabelen ",
+         "en dependencies (Sheet2 van Format_v1.xlsx) niet uniform zijn."))
+}
+
+# filter de juiste rijen uit dep3
+dep4 <- dep3[from %in% names_dep3a[names_dep3b]][to %in% names_dep3a[names_dep3b]]
+
+#maak graph obv dependencies (wat beinvloed wat)
+g2 <- igraph::graph_from_edgelist(as.matrix(dep4[, .(from, to)]), directed = TRUE)
+g2_closeness <- igraph::closeness(g2)
+
+# orden dep4 op closeness
+# misschien voegt dit niet veel toe maar het voelt logisch om eerst de variabelen
+# te checken die het verste "upstream" liggen (in het algemeen betekend dit dat je 
+# DoB als eerste zult onderzoeken en DoDeath als laatste, en nog verschillende daar tussenin uiteraard).
+cl1 <- data.table(g2_closeness, names(g2_closeness))
+colnames(cl1) <- c("closeness", "from")
+dep4 <- dep4[cl1, nomatch = 0, on = "from"]; setnames(dep4, old = "closeness", new = "closeness_from")
+colnames(cl1) <- c("closeness", "to")
+dep4 <- dep4[cl1, nomatch = 0, on = "to"]; setnames(dep4, old = "closeness", new = "closeness_to")
+setorder(dep4, -closeness_from, -closeness_to)
+
+# zet datums op NA indien ze niet voldoen aan het vooraf gedefinieerde sequentiele patroon.
+# indien er een fout gevonden wordt, zet dan ook alle variabelen "downstream" (i.e. tussen
+# onderzochte variabele en (in tijd) de laatste variabele, i.e. meestal dood) op NA.
+old1 <- countNA(merge1, cols = "all")
+for (x in 1:nrow(dep4)){
+  g2_spath <- igraph::all_shortest_paths(g2, from = dep4$from[x])
+  NA1 <- unique(names(unlist(g2_spath$res))) # "downstream" variables
+  
+  # zet alles op NA wat "downstream" connected is
+  # dit is zeer streng maar waarschijnlijk wel het veiligste
+  set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
+      j = NA1, value = NA)
+  
+  # zet zowel "from" als "to" (uit dep4) op NA indien datum niet in de juist opeenvolging staan
+  # dit is het strengste wat je kunt doen, maar daardoor voor nu waarschijnlijk wel goed.
+  #set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
+  #    j = c(dep4$from[x], dep4$to[x]), value = NA)
+}
+new1 <- countNA(merge1, cols = "all")
+reason1 <- "deze datum voor of na een andere datum voorkwam (wat onmogelijk is), zoals bijv. DoO voor DoB."
+mm <- c(mm, list(summaryNA(old1, new1, name_data = "merge1", reason = reason1)))
 
 
 # orden longtidunale data (voeg order toe). Dit komt in later script
