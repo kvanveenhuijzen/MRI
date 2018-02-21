@@ -60,6 +60,7 @@ source(paste0(DIR1, "/R/definitions.R"))
 library(readxl)
 library(data.table)
 library(tidyr)
+# additionally needed packages: igraph
 
 # load data
 d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180221_progeny.xlsx"), col_types = "text"))
@@ -503,15 +504,17 @@ merge1 <- merge(d3, long4, all.x = TRUE)
 #})
 
 #onderstaande nog niet af!!
-old1 <- countNA(merge1, cols = "all")
-for (x in 1:nrow(dep3)){
-  set(merge1, i = merge1[dep3$from[x] > dep3$to[x], which = TRUE], j = dep3$to[x], value = NA)
+TEST <- FALSE
+if(TEST){
+  old1 <- countNA(merge1, cols = "all")
+  for (x in 1:nrow(dep3)){
+    set(merge1, i = merge1[dep3$from[x] > dep3$to[x], which = TRUE], j = dep3$to[x], value = NA)
+  }
+  new1 <- countNA(merge1, cols = "all")
+  summaryNA(old1, new1, name_data = "merge1")
 }
-new1 <- countNA(merge1, cols = "all")
-summaryNA(old1, new1, name_data = "merge1")
 
 
-
-# orden longtidunale data (voeg order toe)
+# orden longtidunale data (voeg order toe). Dit komt in later script
 
 
