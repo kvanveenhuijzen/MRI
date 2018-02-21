@@ -423,7 +423,7 @@ wl_transform1 <- sapply(unique(hier3[, Group]), function(i){
   
   # Check of kolommen uit de supergroep overgeslagen worden
   dt2 <- rename1[Group==i, ]
-  missedmembers <- grep(paste(dt1$Var, collapse = "|"), dt2$Rename, invert = TRUE)
+  missedmembers <- grep(paste(dt1$Var, collapse = "|"), dt2$Rename, invert = TRUE, value = TRUE)
   meld1 <- paste0("Variabelen uit de formattabel groep ", i ," worden herkend als longitudinale data met de",
                   " subgroepen: ", paste(subgroups1, collapse = ", "))
   if (length(missedmembers) > 0){
