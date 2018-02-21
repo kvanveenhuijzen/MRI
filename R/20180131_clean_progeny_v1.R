@@ -29,8 +29,8 @@
 ####################
 
 # package dir
-#DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
-DIR1 <- "/Users/htan4/Documents/Rprojects/MRI" # Harold
+DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
+#DIR1 <- "/Users/htan4/Documents/Rprojects/MRI" # Harold
 
 # source settings
 source(paste0(DIR1, "/R/settings.R"))
@@ -397,7 +397,7 @@ wl_transform1 <- sapply(unique(hier3[, Group]), function(i){
   
   # Op basis van mvars, kolommen genereren
   wlong2 <- melt(wlong1, measure.vars = mvars, 
-                 variable.name = paste0("order_", i), value.name = subgroups1)
+                 variable.name = paste0("ProgenyFU_", i), value.name = subgroups1)
   #verwijder rijen met alleen missings
   wlong2[, count_na:=rowSums(is.na(wlong2))]
   wlong3 <- wlong2[count_na < length(subgroups1)]
@@ -406,17 +406,14 @@ wl_transform1 <- sapply(unique(hier3[, Group]), function(i){
   date1 <- paste0("Do", i)
   date2 <- which(colnames(wlong3)==date1)
   if(length(date2)>0){
-    #nu alleen rekening gehouden met ALSnr en datum, later in script ook nog rekening houd met
-    # hoogte van score (indien datum mist). Hoge score is dan in het algemeen vroeger
-    # CAVE: recall bias in ECAS. Nog verder overleggen (verderop in script pas relevant).
-    # voorbeeld hieronder
-    #setorderv(x = wlong3, cols = c("ALSnr", date1, "..._score"), order = c(1, 1, -1), na.last = TRUE)
+    #nu alleen rekening gehouden met ALSnr en datum, later in script NIET ook nog rekening houd met
+    # hoogte van score (indien datum mist). Omdat hoogte van score niet zo betrouwbaar is voor tijd van afname (iom Harold).
     setorderv(x = wlong3, cols = c("ALSnr", date1), order = c(1, 1), na.last = TRUE)
     
     #verwijder kolom met order (omdat het beter is om order van datum aan te houden)
     # order later pas toevoegen als je checks op datums afgerond hebt.
-    order1 <- paste0("order_", i)
-    wlong3[, c(order1):=NULL]
+    #order1 <- paste0("order_", i)
+    #wlong3[, c(order1):=NULL]
   }
   
   #verwijder kolommen die niet meer nodig zijn
