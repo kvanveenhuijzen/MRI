@@ -312,7 +312,6 @@ list1 <- lapply(1:nrow(mat1),function(i){
   col1 <- which(mat1[i,] <=1)
   return(names(col1))
 })
-#subgr1 <- unique(list1)
 subgr1a <- unique(list1)
 
 # als er geen getal in de naam van de variabele staat kan het (eigenlijk) geen longitudinale meting zijn
@@ -328,18 +327,13 @@ subgr1 <- subgr1a[which(subgr1b==1)]
 
 # Wat zijn de common strings in elke groep
 sgstems1 <- lapply(subgr1, function(i){
-  if (length(i) <=1){
-    return(NA)
-  }
-  pairs1 <- combn(unlist(i), 2)
-  stems1 <- apply(pairs1, 2, function(j){
-    return(cmn_string(x = j[1], y = j[2]))
-  })
-  
-  if(length(unique(stems1)) > 1){  # Als er meerdere common strings zijn, is de groepering niet juist
-    return(NA)
+  stems1 <- longest_substring_vec(unlist(i), matrix_out = TRUE)
+  stems2 <- unique(c(stems1[!is.na(stems1)]))
+
+  if(length(stems2) == 1){  # Als er meer of minder dan 1 common strings zijn, is de groepering onjuist
+    return(stems2)
   } else {
-    return(unique(stems1))
+    return(NA)
   }
 })
 
@@ -347,22 +341,17 @@ names(subgr1) <- unlist(sgstems1)
 sgstems2 <- unlist(unique(sgstems1))
 
 # Check of elke groep bij een 'supergroep' hoort, op basis van terugkerende overlaps.
-mat2 <- sapply(sgstems2, function(i){
-  stems <- sapply(sgstems2, cmn_string, x = i)
-  stems2 <- ifelse(stems=="", NA, stems)
-  return(stems2)
-})
-diag(mat2) <- NA
+mat2 <- longest_substring_vec(sgstems2, matrix_out = TRUE, USE.NAMES = TRUE)
+
 
 # Wat is de meest voorkomende overlap? Dit is de mogelijke supergroep van de betreffende groep
-# VERBETERPUNT?: Wel een gevaarlijke assumptie, andere optie zou zijn om de top n of alle overlaps te checken
-# @Harold: ik zou niet n overlaps implementeren omdat een variabele per definitie maar bij 1 wide2long groep kan horen
-# er kunnen wel verschillende namen voorkomen in tab1 en mat2, momenteer wordt dan de naam genomen die het meeste
-# voorkomt. Dit hoeft echter niet automatisch de juiste te zijn. Hier is mogelijk nog iets te verbeteren. Bijv.
-# door al op voorhand een check te doen met rename1$Group
+# Nieuwe manier: We wegen de mogelijkheden op (lengte van match)^2 en frequentie. 
 tab1 <- apply(mat2, 1, table)
 supgr1 <- sapply(tab1, function(i){
-  return(names(i)[which.max(i)])
+  dt1 <- as.data.table(i)
+  dt1[, Weight:=(nchar(V1)^2 * N)]
+  out1 <- dt1[which.max(Weight),V1]
+  return(out1)
 })
 
 # Maak Hierarchy tabel:superGroup > subGroup > Var
