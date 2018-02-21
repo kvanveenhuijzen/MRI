@@ -163,22 +163,57 @@ excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == 
 
 
 # Vind de langste overeenkomende character string
-############ @HJ: deze functie nog reviewen
-cmn_string <- function(x, y) { 
-  matches <- gregexpr("M+", drop(attr(adist(x, y, counts=TRUE), "trafos")))[[1]];
-  insertions <- gregexpr("I+", drop(attr(adist(x, y, counts=TRUE), "trafos")))[[1]];
-  lengths<- attr(matches, 'match.length')
-  which_longest <- which.max(lengths)
-  index_longest <- matches[which_longest]
-  length_longest <- lengths[which_longest]
+longest_substring <-function(a,b)
+{
+  A <- strsplit(a, "")[[1]]
+  B <- strsplit(b, "")[[1]]
   
-  if (all(insertions > 0)  &  sum(index_longest > insertions) > 0) {
-    index_longest <- index_longest-sum(attr(insertions,"match.length")[index_longest > insertions])
+  L <- matrix(0, length(A), length(B))
+  ones <- which(outer(A, B, "=="), arr.ind = TRUE)
+  ones <- ones[order(ones[, 1]), , drop = FALSE ] 
+  if(length(ones)!=0){
+    for(i in 1:nrow(ones)) {
+      v <- ones[i, , drop = FALSE]
+      L[v] <- ifelse(any(v == 1), 1, L[v - 1] + 1)
+    }
+    out1 <- paste0(A[(-max(L) + 1):0 + which(L == max(L), arr.ind = TRUE)[1]], # De [1] zorgt ervoor dat de meest linkse match genomen wordt
+                   collapse = "")
+  } else {
+    out1 <- NA_character_
   }
-  longest_cmn_sbstr  <- substring(x, index_longest , index_longest + length_longest - 1)
-  return(longest_cmn_sbstr ) 
+  return(out1)
 }
 
+# Bovenstaande functie in vectorized form
+longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_out = FALSE,
+                                  USE.NAMES = FALSE) {
+  a <- as.character(a)
+  
+  if (matrix_out){
+    if (is.null(b)) {
+      b <- a
+    } else {
+      b <- as.character(b)
+    }
+    m <- outer(a, b, Vectorize(longest_substring))
+    diag(m) <- NA
+    if (USE.NAMES){
+      rownames(m) <- a
+      colnames(m) <- b
+    }
+    return(m)
+  } else {
+    if (is.null(b)) {
+      stop("No second input vector given")
+    }
+    if(length(a) != length(b)){
+      stop("Vector lengths do not match")
+    }
+    m <- mapply(longest_substring, a, b, USE.NAMES = USE.NAMES)
+    m[lengths(m) == 0] <- default
+    unlist(m)
+  }
+}
 
 # functie om list van data.tables (ook >2 data.tables) te mergen
 # gebruik met Reduce(merge_list, list_of_dt)
