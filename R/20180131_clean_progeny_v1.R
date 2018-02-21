@@ -29,8 +29,8 @@
 ####################
 
 # package dir
-DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
-#DIR1 <- "/Users/htan4/Documents/Rprojects/MRI" # Harold
+#DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
+DIR1 <- "/Users/htan4/Documents/Rprojects/MRI" # Harold
 
 # source settings
 source(paste0(DIR1, "/R/settings.R"))
@@ -62,7 +62,7 @@ library(data.table)
 library(tidyr)
 
 # load data
-d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180214_progeny.xlsx"), col_types = "text"))
+d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180221_progeny.xlsx"), col_types = "text"))
 format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 1))
 dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 2))
 
@@ -319,8 +319,8 @@ names1 <- unique(unlist(subgr1a))
 names2 <- grep("[0-9]", names1, value = TRUE)
 
 subgr1b <- unlist(lapply(1:length(subgr1a), function(x){
-  out1 <- length(which(names2 %in% subgr1a[[x]]))
-  out2 <- ifelse(out1==0, 0, 1)
+  out1 <- subgr1a[[x]] %in% names2
+  out2 <- ifelse(all(out1), 1, 0)
   return(out2)
 }))
 subgr1 <- subgr1a[which(subgr1b==1)]
