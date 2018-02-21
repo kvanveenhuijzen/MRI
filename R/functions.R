@@ -184,7 +184,7 @@ longest_substring <-function(a,b)
   return(out1)
 }
 
-# Bovenstaande functie in vectorized form
+# Wrapper voor functie longest_substring. Vector input en vector/matrix output mogelijk.
 longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_out = FALSE,
                                   USE.NAMES = FALSE) {
   a <- as.character(a)
