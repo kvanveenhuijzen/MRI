@@ -22,6 +22,7 @@
 # 8.  wide to long format
 # 9.  sumscores ALSFRS-R (tzt verder naar beneden plaatsen)
 # 10. check dates
+# 11. definite split of cross and long data
 
 
 ####################
@@ -431,6 +432,9 @@ mm <- c(mm, wlong_mm1)
 #voeg wlong_list1 samen met long data die al in long3 zit
 long3 <- c(long3, wlong_list1)
 
+#verwijder wide2long columns uit d3
+d3 <- d3[, !colnames(d3) %in% unique(unlist(subgr1)), with = FALSE]
+
 
 ##############################
 ####  SUMSCORES ALSFRS-R  ####
@@ -477,7 +481,7 @@ if(all(dep3$value==-1)==FALSE){
 key1 <- lapply(long3, function(x){
   setkey(x, ALSnr)
 })
-long4 <- Reduce(merge_list, key1)
+long4 <- unique(Reduce(merge_list_cart, key1)) # hier unique toegevoegd, zou volgens mij moeten kunnen @Harold wat vind jij?
 setkey(d3, ALSnr)
 merge1 <- merge(d3, long4, all.x = TRUE)
 
@@ -533,6 +537,38 @@ reason1 <- "deze datum voor of na een andere datum voorkwam (wat onmogelijk is),
 mm <- c(mm, list(summaryNA(old1, new1, name_data = "merge1", reason = reason1)))
 
 
-# orden longtidunale data (voeg order toe). Dit komt in later script
+###############################################
+####  DEFINITE SPLIT OF CROSS & LONG DATA  ####
+###############################################
 
+# colnames in long3
+coln_long3 <- lapply(long3, function(x){
+  colnames(x)
+})
+
+# longitudinale dataset
+long4 <- lapply(coln_long3, function(x){
+  df1 <- merge1[, ..x]
+  df1[, count_na:=rowSums(is.na(df1))]
+  df2 <- df1[count_na < (ncol(df1)-2)] # -2 omdat je altijd ALSnr en nu ook count_na hebt
+  df3 <- unique(df2) # hier ook weer unique gedaan omdat je volgens mij geen longitudinale waardes kunt hebben die identiek zijn @Harold: wat vind jij?
+  df3[, count_na:=NULL]
+  return(df3)
+})
+
+# cross-sectionele dataset
+coln_cross <- c("ALSnr", setdiff(colnames(merge1), unique(unlist(coln_long3))))
+d4 <- unique(merge1[, ..coln_cross])
+
+
+# ER GAAT HIER ERGENS IETS FOUT
+# zie hieronder
+d4[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)]] #hier fout
+d3[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)], colnames(d4), with = FALSE] #hier nog niet
+
+
+
+
+
+# orden longtidunale data (voeg order toe). Dit komt in nieuw script (voor databewerking).
 
