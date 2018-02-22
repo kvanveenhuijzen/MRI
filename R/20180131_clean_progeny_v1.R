@@ -22,6 +22,7 @@
 # 8.  wide to long format
 # 9.  sumscores ALSFRS-R (tzt verder naar beneden plaatsen)
 # 10. check dates
+# 11. definite split of cross and long data
 
 
 ####################
@@ -29,8 +30,8 @@
 ####################
 
 # package dir
-#DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
-DIR1 <- "/Users/htan4/Documents/Rprojects/MRI" # Harold
+DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
+#DIR1 <- "/Users/htan4/Documents/Rprojects/MRI" # Harold
 
 # source settings
 source(paste0(DIR1, "/R/settings.R"))
@@ -312,7 +313,6 @@ list1 <- lapply(1:nrow(mat1),function(i){
   col1 <- which(mat1[i,] <=1)
   return(names(col1))
 })
-#subgr1 <- unique(list1)
 subgr1a <- unique(list1)
 
 # als er geen getal in de naam van de variabele staat kan het (eigenlijk) geen longitudinale meting zijn
@@ -328,18 +328,13 @@ subgr1 <- subgr1a[which(subgr1b==1)]
 
 # Wat zijn de common strings in elke groep
 sgstems1 <- lapply(subgr1, function(i){
-  if (length(i) <=1){
-    return(NA)
-  }
-  pairs1 <- combn(unlist(i), 2)
-  stems1 <- apply(pairs1, 2, function(j){
-    return(cmn_string(x = j[1], y = j[2]))
-  })
-  
-  if(length(unique(stems1)) > 1){  # Als er meerdere common strings zijn, is de groepering niet juist
-    return(NA)
+  stems1 <- longest_substring_vec(unlist(i), matrix_out = TRUE)
+  stems2 <- unique(c(stems1[!is.na(stems1)]))
+
+  if(length(stems2) == 1){  # Als er meer of minder dan 1 common strings zijn, is de groepering onjuist
+    return(stems2)
   } else {
-    return(unique(stems1))
+    return(NA)
   }
 })
 
@@ -347,22 +342,17 @@ names(subgr1) <- unlist(sgstems1)
 sgstems2 <- unlist(unique(sgstems1))
 
 # Check of elke groep bij een 'supergroep' hoort, op basis van terugkerende overlaps.
-mat2 <- sapply(sgstems2, function(i){
-  stems <- sapply(sgstems2, cmn_string, x = i)
-  stems2 <- ifelse(stems=="", NA, stems)
-  return(stems2)
-})
-diag(mat2) <- NA
+mat2 <- longest_substring_vec(sgstems2, matrix_out = TRUE, USE.NAMES = TRUE)
+
 
 # Wat is de meest voorkomende overlap? Dit is de mogelijke supergroep van de betreffende groep
-# VERBETERPUNT?: Wel een gevaarlijke assumptie, andere optie zou zijn om de top n of alle overlaps te checken
-# @Harold: ik zou niet n overlaps implementeren omdat een variabele per definitie maar bij 1 wide2long groep kan horen
-# er kunnen wel verschillende namen voorkomen in tab1 en mat2, momenteer wordt dan de naam genomen die het meeste
-# voorkomt. Dit hoeft echter niet automatisch de juiste te zijn. Hier is mogelijk nog iets te verbeteren. Bijv.
-# door al op voorhand een check te doen met rename1$Group
+# Nieuwe manier: We wegen de mogelijkheden op (lengte van match)^2 en frequentie. 
 tab1 <- apply(mat2, 1, table)
 supgr1 <- sapply(tab1, function(i){
-  return(names(i)[which.max(i)])
+  dt1 <- as.data.table(i)
+  dt1[, Weight:=(nchar(V1)^2 * N)]
+  out1 <- dt1[which.max(Weight),V1]
+  return(out1)
 })
 
 # Maak Hierarchy tabel:superGroup > subGroup > Var
@@ -397,7 +387,7 @@ wl_transform1 <- sapply(unique(hier3[, Group]), function(i){
   
   # Op basis van mvars, kolommen genereren
   wlong2 <- melt(wlong1, measure.vars = mvars, 
-                 variable.name = paste0("order_", i), value.name = subgroups1)
+                 variable.name = paste0("ProgenyFU_", i), value.name = subgroups1)
   #verwijder rijen met alleen missings
   wlong2[, count_na:=rowSums(is.na(wlong2))]
   wlong3 <- wlong2[count_na < length(subgroups1)]
@@ -406,17 +396,14 @@ wl_transform1 <- sapply(unique(hier3[, Group]), function(i){
   date1 <- paste0("Do", i)
   date2 <- which(colnames(wlong3)==date1)
   if(length(date2)>0){
-    #nu alleen rekening gehouden met ALSnr en datum, later in script ook nog rekening houd met
-    # hoogte van score (indien datum mist). Hoge score is dan in het algemeen vroeger
-    # CAVE: recall bias in ECAS. Nog verder overleggen (verderop in script pas relevant).
-    # voorbeeld hieronder
-    #setorderv(x = wlong3, cols = c("ALSnr", date1, "..._score"), order = c(1, 1, -1), na.last = TRUE)
+    #nu alleen rekening gehouden met ALSnr en datum, later in script NIET ook nog rekening houd met
+    # hoogte van score (indien datum mist). Omdat hoogte van score niet zo betrouwbaar is voor tijd van afname (iom Harold).
     setorderv(x = wlong3, cols = c("ALSnr", date1), order = c(1, 1), na.last = TRUE)
     
     #verwijder kolom met order (omdat het beter is om order van datum aan te houden)
     # order later pas toevoegen als je checks op datums afgerond hebt.
-    order1 <- paste0("order_", i)
-    wlong3[, c(order1):=NULL]
+    #order1 <- paste0("order_", i)
+    #wlong3[, c(order1):=NULL]
   }
   
   #verwijder kolommen die niet meer nodig zijn
@@ -444,6 +431,9 @@ mm <- c(mm, wlong_mm1)
 
 #voeg wlong_list1 samen met long data die al in long3 zit
 long3 <- c(long3, wlong_list1)
+
+#verwijder wide2long columns uit d3
+d3 <- d3[, !colnames(d3) %in% unique(unlist(subgr1)), with = FALSE]
 
 
 ##############################
@@ -477,7 +467,7 @@ mm <- c(mm, paste0("MELDING: Longitudinale data van ALSFRS geordend: ",
 ####  CHECK DATES  ####
 #######################
 
-#make dependencies uniform
+# make dependencies uniform
 dep2a <- dep2[value==1]
 setcolorder(dep2a, c("to", "from", setdiff(names(dep2a), c("from", "to"))))
 setnames(dep2a, old = c("to", "from"), new = c("from", "to"))
@@ -491,30 +481,98 @@ if(all(dep3$value==-1)==FALSE){
 key1 <- lapply(long3, function(x){
   setkey(x, ALSnr)
 })
-long4 <- Reduce(merge_list, key1)
+long4 <- unique(Reduce(merge_list_cart, key1)) # hier unique toegevoegd, zou volgens mij moeten kunnen @Harold wat vind jij?
 setkey(d3, ALSnr)
 merge1 <- merge(d3, long4, all.x = TRUE)
 
-# zet datums op NA als er niet aan de voorwaarden voldaan wordt (zoals vastgelegd in
-#  dep2 en dep3 (en dus sheet 2 van format_v1.xlsx))
-#test1 <- lapply(1:nrow(dep3), function(x){
-#  out1 <- merge1[dep3$from[x] > dep3$to[x], which = TRUE]
-#  out2 <- merge1[out1, ]
-#  return(out1)
-#})
+# zorg dat alle namen in dep3 ook voorkomen in colnames(merge1)
+names_dep3a <- unique(unlist(dep3[, .(from, to)]))
+names_dep3b <- names_dep3a %in% colnames(merge1)
 
-#onderstaande nog niet af!!
-TEST <- FALSE
-if(TEST){
-  old1 <- countNA(merge1, cols = "all")
-  for (x in 1:nrow(dep3)){
-    set(merge1, i = merge1[dep3$from[x] > dep3$to[x], which = TRUE], j = dep3$to[x], value = NA)
-  }
-  new1 <- countNA(merge1, cols = "all")
-  summaryNA(old1, new1, name_data = "merge1")
+# maak melding indien niet alle namen in dep3 voorkomen in colnames(merge1)
+if(any(names_dep3b==FALSE)){
+  mm <- c(mm, paste0("LET OP! ", "De volgende naam/namen (in dep3) komt/komen niet voor in de dataset (merge1): ",
+         names_dep3a[!names_dep3b], ". Dit kan er op wijzen dat de namen van de variabelen ",
+         "en dependencies (Sheet2 van Format_v1.xlsx) niet uniform zijn."))
 }
 
+# filter de juiste rijen uit dep3
+dep4 <- dep3[from %in% names_dep3a[names_dep3b]][to %in% names_dep3a[names_dep3b]]
 
-# orden longtidunale data (voeg order toe). Dit komt in later script
+#maak graph obv dependencies (wat beinvloed wat)
+g2 <- igraph::graph_from_edgelist(as.matrix(dep4[, .(from, to)]), directed = TRUE)
+g2_closeness <- igraph::closeness(g2)
 
+# orden dep4 op closeness
+# misschien voegt dit niet veel toe maar het voelt logisch om eerst de variabelen
+# te checken die het verste "upstream" liggen (in het algemeen betekend dit dat je 
+# DoB als eerste zult onderzoeken en DoDeath als laatste, en nog verschillende daar tussenin uiteraard).
+cl1 <- data.table(g2_closeness, names(g2_closeness))
+colnames(cl1) <- c("closeness", "from")
+dep4 <- dep4[cl1, nomatch = 0, on = "from"]; setnames(dep4, old = "closeness", new = "closeness_from")
+colnames(cl1) <- c("closeness", "to")
+dep4 <- dep4[cl1, nomatch = 0, on = "to"]; setnames(dep4, old = "closeness", new = "closeness_to")
+setorder(dep4, -closeness_from, -closeness_to)
+
+# zet datums op NA indien ze niet voldoen aan het vooraf gedefinieerde sequentiele patroon.
+# indien er een fout gevonden wordt, zet dan ook alle variabelen "downstream" (i.e. tussen
+# onderzochte variabele en (in tijd) de laatste variabele, i.e. meestal dood) op NA.
+old1 <- countNA(merge1, cols = "all")
+for (x in 1:nrow(dep4)){
+  g2_spath <- igraph::all_shortest_paths(g2, from = dep4$from[x])
+  NA1 <- unique(names(unlist(g2_spath$res))) # "downstream" variables
+  
+  # zet alles op NA wat "downstream" connected is
+  # dit is zeer streng maar waarschijnlijk wel het veiligste
+  set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
+      j = NA1, value = NA)
+  
+  # zet zowel "from" als "to" (uit dep4) op NA indien datum niet in de juist opeenvolging staan
+  # dit is het strengste wat je kunt doen, maar daardoor voor nu waarschijnlijk wel goed.
+  #set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
+  #    j = c(dep4$from[x], dep4$to[x]), value = NA)
+}
+new1 <- countNA(merge1, cols = "all")
+reason1 <- "deze datum voor of na een andere datum voorkwam (wat onmogelijk is), zoals bijv. DoO voor DoB."
+mm <- c(mm, list(summaryNA(old1, new1, name_data = "merge1", reason = reason1)))
+
+
+###############################################
+####  DEFINITE SPLIT OF CROSS & LONG DATA  ####
+###############################################
+
+# colnames in long3
+coln_long3 <- lapply(long3, function(x){
+  colnames(x)
+})
+
+# longitudinale dataset
+long4 <- lapply(coln_long3, function(x){
+  df1 <- merge1[, ..x]
+  df1[, count_na:=rowSums(is.na(df1))]
+  df2 <- df1[count_na < (ncol(df1)-2)] # -2 omdat je altijd ALSnr en nu ook count_na hebt
+  df3 <- unique(df2) # hier ook weer unique gedaan omdat je volgens mij geen longitudinale waardes kunt hebben die identiek zijn @Harold: wat vind jij?
+  df3[, count_na:=NULL]
+  return(df3)
+})
+
+# cross-sectionele dataset
+coln_cross <- c("ALSnr", setdiff(colnames(merge1), unique(unlist(coln_long3))))
+d4 <- unique(merge1[, ..coln_cross])
+
+
+# ER GAAT HIER ERGENS IETS FOUT
+# zie hieronder
+# OK. Fout zit in vergelijk met longitudinale data. Onderstaande subjecten hebben een
+# ALSFRS-R gehad voor de diagnose. Dit nog verder toegevoegd aan issue #4
+coln_test <- unique(c(colnames(d4), unlist(dep4[, .(from, to)])))
+d4[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)]] #hier fout
+merge1[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)], coln_test, with = FALSE] #hier fout
+d3[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)], colnames(d4), with = FALSE] #hier nog niet
+
+
+
+
+
+# orden longtidunale data (voeg order toe). Dit komt in nieuw script (voor databewerking).
 
