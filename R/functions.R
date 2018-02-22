@@ -170,8 +170,8 @@ longest_substring <-function(a,b)
   
   L <- matrix(0, length(A), length(B))
   ones <- which(outer(A, B, "=="), arr.ind = TRUE)
-  ones <- ones[order(ones[, 1]), , drop = FALSE ] 
-  if(length(ones)!=0){
+  ones <- ones[order(ones[, 1]), , drop = FALSE] 
+  if(length(ones) != 0){
     for(i in 1:nrow(ones)) {
       v <- ones[i, , drop = FALSE]
       L[v] <- ifelse(any(v == 1), 1, L[v - 1] + 1)
@@ -183,6 +183,7 @@ longest_substring <-function(a,b)
   }
   return(out1)
 }
+
 
 # Wrapper voor functie longest_substring. Vector input en vector/matrix output mogelijk.
 longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_out = FALSE,
@@ -214,6 +215,7 @@ longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_o
     unlist(m)
   }
 }
+
 
 # functie om list van data.tables (ook >2 data.tables) te mergen
 # gebruik met Reduce(merge_list, list_of_dt)
