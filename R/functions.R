@@ -218,4 +218,5 @@ longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_o
 # functie om list van data.tables (ook >2 data.tables) te mergen
 # gebruik met Reduce(merge_list, list_of_dt)
 merge_list <- function(...) merge(..., all = TRUE)
+merge_list_cart <- function(...) merge(..., all = TRUE, allow.cartesian = TRUE)
 
