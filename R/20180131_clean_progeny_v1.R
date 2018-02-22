@@ -272,9 +272,13 @@ l2 <- lapply(gr1, function(x){
     stop("Sommige longitudinale data lijkt toegewezen te zijn aan >1 group (in format1)")
   }
   
+  #maak wat object en (nieuw) kolomnamen aan
+  progenyFU1 <- paste0("ProgenyFU_", group1)
   coln1 <- c("ALSnr", coln0)
-  old1 <- nrow(long2)
   long3 <- long2[, coln1, with = FALSE]
+  
+  #verwijder kolommen met alleen NA's
+  old1 <- nrow(long2)
   long3 <- long3[rowSums(!is.na(long3))>1]
   new1 <- nrow(long3)
   meld1 <- paste0("In longitudinale ", group1, " data, ", old1-new1, "/", old1, " (", roundHJ1((old1-new1)/old1*100),"%) ",
@@ -283,6 +287,12 @@ l2 <- lapply(gr1, function(x){
                   "format, de longitudinale data getrapt naast elkaar staat. ",
                   "Dit leidt automatisch to relatief veel lege cellen. Het is belangrijker om te letten op het ",
                   "percentage wat je over houdt.")
+  
+  #voeg ProgenyFU_<var> toe een longitudinale datasets
+  long3[, ProgenyFU_:=seq_len(.N), by = ALSnr]
+  setnames(long3, old = "ProgenyFU_", new = progenyFU1)
+  
+  #return
   out1 <- list(group1, meld1, long3)
   return(out1)
 })
@@ -370,7 +380,7 @@ setnames(rename1_w2l, old = c("Rename"), new = c("Var"))
 hier3 <- hier3[rename1_w2l, nomatch = 0, on = "Var"]
 hier3[, check_group:=diag(sapply(Group, grepl, superGroup, ignore.case = TRUE))]
 
-#check
+# check
 if(any(hier3$check_group==FALSE)){
   stop("In data = hier3 komen superGroup en Group soms niet overeen. Oplossen voordat je verder gaat.")
 }
@@ -423,16 +433,16 @@ wl_transform1 <- sapply(unique(hier3[, Group]), function(i){
   return(out1)
 }, simplify = FALSE, USE.NAMES = TRUE)
 
-#splits data en meldingen
+# splits data en meldingen
 wlong_list1 <- lapply(wl_transform1, "[[", 1)
 wlong_mm1 <- lapply(wl_transform1, "[[", 2)
 names(wlong_mm1) <- NULL
 mm <- c(mm, wlong_mm1)
 
-#voeg wlong_list1 samen met long data die al in long3 zit
+# voeg wlong_list1 samen met long data die al in long3 zit
 long3 <- c(long3, wlong_list1)
 
-#verwijder wide2long columns uit d3
+# verwijder wide2long columns uit d3
 d3 <- d3[, !colnames(d3) %in% unique(unlist(subgr1)), with = FALSE]
 
 
@@ -499,7 +509,7 @@ if(any(names_dep3b==FALSE)){
 # filter de juiste rijen uit dep3
 dep4 <- dep3[from %in% names_dep3a[names_dep3b]][to %in% names_dep3a[names_dep3b]]
 
-#maak graph obv dependencies (wat beinvloed wat)
+# maak graph obv dependencies (wat beinvloed wat)
 g2 <- igraph::graph_from_edgelist(as.matrix(dep4[, .(from, to)]), directed = TRUE)
 g2_closeness <- igraph::closeness(g2)
 
@@ -514,23 +524,47 @@ colnames(cl1) <- c("closeness", "to")
 dep4 <- dep4[cl1, nomatch = 0, on = "to"]; setnames(dep4, old = "closeness", new = "closeness_to")
 setorder(dep4, -closeness_from, -closeness_to)
 
+# welke data in dep4 is long?
+long_names <- unique(unlist(lapply(long3, colnames)))
+long_names <- long_names[-which(long_names=="ALSnr")]
+dep4[, long_from:=from %in% long_names]
+dep4[, long_to:=to %in% long_names]
+
 # zet datums op NA indien ze niet voldoen aan het vooraf gedefinieerde sequentiele patroon.
 # indien er een fout gevonden wordt, zet dan ook alle variabelen "downstream" (i.e. tussen
-# onderzochte variabele en (in tijd) de laatste variabele, i.e. meestal dood) op NA.
+# onderzochte variabele en (in tijd) de laatste variabele, i.e. meestal dood) op NA, BEHALVE
+# als het longitudinale data betreft, dan alleen longitudinale variabele op NA zetten.
 old1 <- countNA(merge1, cols = "all")
 for (x in 1:nrow(dep4)){
-  g2_spath <- igraph::all_shortest_paths(g2, from = dep4$from[x])
-  NA1 <- unique(names(unlist(g2_spath$res))) # "downstream" variables
-  
-  # zet alles op NA wat "downstream" connected is
-  # dit is zeer streng maar waarschijnlijk wel het veiligste
-  set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
-      j = NA1, value = NA)
-  
-  # zet zowel "from" als "to" (uit dep4) op NA indien datum niet in de juist opeenvolging staan
-  # dit is het strengste wat je kunt doen, maar daardoor voor nu waarschijnlijk wel goed.
-  #set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
-  #    j = c(dep4$from[x], dep4$to[x]), value = NA)
+  ll1 <- which(c(dep4$long_from[x], dep4$long_to[x])==TRUE)
+  if(length(ll1) > 0){
+    #longitudinale data
+    if(identical(ll1, c(1, 2))){
+      set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
+          j = c(dep4$from[x], dep4$to[x]), value = NA)
+    }else if(identical(ll1, 1)){
+      set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
+          j = dep4$from[x], value = NA)
+    }else if(identical(ll1, 2)){
+      set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
+          j = dep4$to[x], value = NA)
+    }
+    
+  }else{
+    #cross-sectionele data
+    g2_spath <- igraph::all_shortest_paths(g2, from = dep4$from[x])
+    NA1 <- unique(names(unlist(g2_spath$res))) # "downstream" variables
+    
+    # zet alles op NA wat "downstream" connected is
+    # dit is zeer streng maar waarschijnlijk wel het veiligste
+    set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
+        j = NA1, value = NA)
+    
+    # zet zowel "from" als "to" (uit dep4) op NA indien datum niet in de juist opeenvolging staan
+    # dit is het strengste wat je kunt doen, maar daardoor voor nu waarschijnlijk wel goed.
+    #set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
+    #    j = c(dep4$from[x], dep4$to[x]), value = NA)
+  }
 }
 new1 <- countNA(merge1, cols = "all")
 reason1 <- "deze datum voor of na een andere datum voorkwam (wat onmogelijk is), zoals bijv. DoO voor DoB."
@@ -560,15 +594,23 @@ long4 <- lapply(coln_long3, function(x){
 coln_cross <- c("ALSnr", setdiff(colnames(merge1), unique(unlist(coln_long3))))
 d4 <- unique(merge1[, ..coln_cross])
 
+# checks of long en cross data (na bewerking) weer klopt. Indien fout, geef error; indien goed, zet in mm.
+# zijn er in de longitudinale data rijen of kolommen bijgekomen of af gegaan (als het goed is niet)?
+if(identical(lapply(long3, dim), lapply(long4, dim)) == FALSE){
+  stop("long3 en long4 hebben niet dezelfde dimensies. Waarschijnlijk is er iets fout gegaan. Oplossen voor dat je verder gaat.")
+}else{
+  mm <- c(mm, paste0("long3 en long4 hebben dezelfde dimensies. Geen aanwijzingen voor fouten hierin."))
+}
+# heeft ieder subject in de cross-sectionele data exact 1 rij?
+check1 <- nrow(d4[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)]])
+check2 <- identical(sort(unique(d4$ALSnr)), sort(unique(d3$ALSnr)))
+if(check1 != 0 | check2 == FALSE){
+  stop("Er komen duplicated ALSnrs voor in d4 en/of de ALSnrs van d3 en d4 komen niet exact overeen. Oplossen voordat je verder gaat.")
+}else{
+  mm <- c(mm, paste0("Ieder uniek ALSnr in d4 heeft exact 1 rij. Ieder uniek ALSnr in d3 komt ook in d4 voor ",
+                     "en vice versa. Geen aanwijzingen voor fouten hierin."))
+}
 
-# ER GAAT HIER ERGENS IETS FOUT
-# zie hieronder
-# OK. Fout zit in vergelijk met longitudinale data. Onderstaande subjecten hebben een
-# ALSFRS-R gehad voor de diagnose. Dit nog verder toegevoegd aan issue #4
-coln_test <- unique(c(colnames(d4), unlist(dep4[, .(from, to)])))
-d4[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)]] #hier fout
-merge1[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)], coln_test, with = FALSE] #hier fout
-d3[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)], colnames(d4), with = FALSE] #hier nog niet
 
 
 
