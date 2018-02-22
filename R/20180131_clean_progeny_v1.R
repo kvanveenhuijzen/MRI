@@ -563,7 +563,9 @@ d4 <- unique(merge1[, ..coln_cross])
 
 # ER GAAT HIER ERGENS IETS FOUT
 # zie hieronder
+coln_test <- unique(c(colnames(d4), unlist(dep4[, .(from, to)])))
 d4[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)]] #hier fout
+merge1[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)], coln_test, with = FALSE] #hier fout
 d3[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)], colnames(d4), with = FALSE] #hier nog niet
 
 
