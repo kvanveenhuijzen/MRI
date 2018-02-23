@@ -495,6 +495,19 @@ long4 <- unique(Reduce(merge_list_cart, key1)) # hier unique toegevoegd, zou vol
 setkey(d3, ALSnr)
 merge1 <- merge(d3, long4, all.x = TRUE)
 
+#geef nog een warning voor dates die niet in Sheet2 van Format_v1.xlsx stonden
+dates_merge1 <- grep("Do", colnames(merge1), ignore.case = FALSE, value = TRUE)
+dates_dep1 <- unique(c(dep2$from, dep2$to))
+miss1 <- dates_merge1[!dates_merge1 %in% dates_dep1]
+if(length(miss1) > 0){
+  mm <- c(mm, paste0("WARNING: ", paste(miss1, collapse = ", "), " komt niet voor in Sheet2 van Format_v1.xlsx ", 
+                     "maar wel in de dataset (merge1). Overweeg om ", paste(miss1, collapse = ", "),
+                     " alsnog op te nemen in Sheet2 van Format_v1.xlsx."))
+}else{
+  mm <- c(mm, "Alle dates in de dataset (merge1) komen ook voor in Sheet2 van Format_v1.xlsx. ",
+          "Hier geen aanwijzingen voor fouten.")
+}
+
 # zorg dat alle namen in dep3 ook voorkomen in colnames(merge1)
 names_dep3a <- unique(unlist(dep3[, .(from, to)]))
 names_dep3b <- names_dep3a %in% colnames(merge1)
