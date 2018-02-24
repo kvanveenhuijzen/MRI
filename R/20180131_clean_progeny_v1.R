@@ -491,9 +491,22 @@ if(all(dep3$value==-1)==FALSE){
 key1 <- lapply(long3, function(x){
   setkey(x, ALSnr)
 })
-long4 <- unique(Reduce(merge_list_cart, key1)) # hier unique toegevoegd, zou volgens mij moeten kunnen @Harold wat vind jij?
+long4 <- unique(Reduce(merge_list_cart, key1))
 setkey(d3, ALSnr)
 merge1 <- merge(d3, long4, all.x = TRUE)
+
+#geef nog een warning voor dates die niet in Sheet2 van Format_v1.xlsx stonden
+dates_merge1 <- grep("Do", colnames(merge1), ignore.case = FALSE, value = TRUE)
+dates_dep1 <- unique(c(dep2$from, dep2$to))
+miss1 <- dates_merge1[!dates_merge1 %in% dates_dep1]
+if(length(miss1) > 0){
+  mm <- c(mm, paste0("WARNING: ", paste(miss1, collapse = ", "), " komt niet voor in Sheet2 van Format_v1.xlsx ", 
+                     "maar wel in de dataset (merge1). Overweeg om ", paste(miss1, collapse = ", "),
+                     " alsnog op te nemen in Sheet2 van Format_v1.xlsx."))
+}else{
+  mm <- c(mm, "Alle dates in de dataset (merge1) komen ook voor in Sheet2 van Format_v1.xlsx. ",
+          "Hier geen aanwijzingen voor fouten.")
+}
 
 # zorg dat alle namen in dep3 ook voorkomen in colnames(merge1)
 names_dep3a <- unique(unlist(dep3[, .(from, to)]))
@@ -534,41 +547,31 @@ dep4[, long_to:=to %in% long_names]
 # indien er een fout gevonden wordt, zet dan ook alle variabelen "downstream" (i.e. tussen
 # onderzochte variabele en (in tijd) de laatste variabele, i.e. meestal dood) op NA, BEHALVE
 # als het longitudinale data betreft, dan alleen longitudinale variabele op NA zetten.
+message1 <- list()
 old1 <- countNA(merge1, cols = "all")
 for (x in 1:nrow(dep4)){
-  ll1 <- which(c(dep4$long_from[x], dep4$long_to[x])==TRUE)
-  if(length(ll1) > 0){
-    #longitudinale data
-    if(identical(ll1, c(1, 2))){
-      set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
-          j = c(dep4$from[x], dep4$to[x]), value = NA)
-    }else if(identical(ll1, 1)){
-      set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
-          j = dep4$from[x], value = NA)
-    }else if(identical(ll1, 2)){
-      set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
-          j = dep4$to[x], value = NA)
-    }
-    
-  }else{
-    #cross-sectionele data
-    g2_spath <- igraph::all_shortest_paths(g2, from = dep4$from[x])
-    NA1 <- unique(names(unlist(g2_spath$res))) # "downstream" variables
-    
-    # zet alles op NA wat "downstream" connected is
-    # dit is zeer streng maar waarschijnlijk wel het veiligste
-    set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
-        j = NA1, value = NA)
-    
-    # zet zowel "from" als "to" (uit dep4) op NA indien datum niet in de juist opeenvolging staan
-    # dit is het strengste wat je kunt doen, maar daardoor voor nu waarschijnlijk wel goed.
-    #set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
-    #    j = c(dep4$from[x], dep4$to[x]), value = NA)
-  }
+  g2_spath <- igraph::all_shortest_paths(g2, from = dep4$from[x])
+  NA1 <- unique(names(unlist(g2_spath$res))) # "downstream" variables
+  
+  #make messages
+  message1[[x]] <- unique(merge1[get(dep4$from[x]) > get(dep4$to[x]),
+                                 j = c("ALSnr", dep4$from[x], dep4$to[x]), with = FALSE])
+  
+  # zet alles op NA wat "downstream" connected is
+  # dit is zeer streng maar waarschijnlijk wel het veiligste
+  set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
+      j = NA1, value = NA)
 }
 new1 <- countNA(merge1, cols = "all")
 reason1 <- "deze datum voor of na een andere datum voorkwam (wat onmogelijk is), zoals bijv. DoO voor DoB."
 mm <- c(mm, list(summaryNA(old1, new1, name_data = "merge1", reason = reason1)))
+
+#postprocess messages
+message2 <- message1[which(sapply(message1, dim)[1,] > 0)]
+message2 <- c(paste0("Hieronder volgt een lijst van discrepante dates. ",
+                     "Deze dates zijn op NA gezet, evenals de 'downstream' dates ",
+                     "(zoals beschreven in g2)."), message2)
+mm <- c(mm, list(message2))
 
 
 ###############################################
@@ -585,7 +588,7 @@ long4 <- lapply(coln_long3, function(x){
   df1 <- merge1[, ..x]
   df1[, count_na:=rowSums(is.na(df1))]
   df2 <- df1[count_na < (ncol(df1)-2)] # -2 omdat je altijd ALSnr en nu ook count_na hebt
-  df3 <- unique(df2) # hier ook weer unique gedaan omdat je volgens mij geen longitudinale waardes kunt hebben die identiek zijn @Harold: wat vind jij?
+  df3 <- unique(df2)
   df3[, count_na:=NULL]
   return(df3)
 })
@@ -593,6 +596,18 @@ long4 <- lapply(coln_long3, function(x){
 # cross-sectionele dataset
 coln_cross <- c("ALSnr", setdiff(colnames(merge1), unique(unlist(coln_long3))))
 d4 <- unique(merge1[, ..coln_cross])
+
+# zet per subject iedere variabele op NA als er >0 keer een NA in die variabele voorkomt
+# dit is nodig omdat je soms een bij longitudinale data een keer een datum op NA gezet hebt
+# maar dit kan nog niet in de cross-sectionele data consistent doorgevoerd is
+dub1 <- d4$ALSnr[duplicated(d4$ALSnr)]
+for (x in dub1){
+  df1 <- d4[ALSnr == x]
+  NA_row <- d4[ALSnr == x, which = TRUE]
+  NA_col <- names(which(colSums(is.na(df1)) > 0))
+  set(d4, i = NA_row, j = NA_col, value = NA)
+}
+d4 <- unique(d4)
 
 # checks of long en cross data (na bewerking) weer klopt. Indien fout, geef error; indien goed, zet in mm.
 # zijn er in de longitudinale data rijen of kolommen bijgekomen of af gegaan (als het goed is niet)?
