@@ -491,7 +491,7 @@ if(all(dep3$value==-1)==FALSE){
 key1 <- lapply(long3, function(x){
   setkey(x, ALSnr)
 })
-long4 <- unique(Reduce(merge_list_cart, key1)) # hier unique toegevoegd, zou volgens mij moeten kunnen @Harold wat vind jij?
+long4 <- unique(Reduce(merge_list_cart, key1))
 setkey(d3, ALSnr)
 merge1 <- merge(d3, long4, all.x = TRUE)
 
@@ -588,7 +588,7 @@ long4 <- lapply(coln_long3, function(x){
   df1 <- merge1[, ..x]
   df1[, count_na:=rowSums(is.na(df1))]
   df2 <- df1[count_na < (ncol(df1)-2)] # -2 omdat je altijd ALSnr en nu ook count_na hebt
-  df3 <- unique(df2) # hier ook weer unique gedaan omdat je volgens mij geen longitudinale waardes kunt hebben die identiek zijn @Harold: wat vind jij?
+  df3 <- unique(df2)
   df3[, count_na:=NULL]
   return(df3)
 })
