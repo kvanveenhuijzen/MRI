@@ -162,8 +162,19 @@ excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == 
 }
 
 
-# Vind de langste overeenkomende character string
-longest_substring <-function(a,b)
+
+#' Find Longest Common Substring
+#'
+#' Find the longest common substring in two character strings. For character vectors, 
+#' use \code{\link{longest_substring_vec}}.
+#'
+#' @param a a character.
+#' @param b a character.
+#' 
+#' @return Returns the longest common substring of two character. If multiple longest substrings 
+#' of equal length are found, function will return the leftmost string.
+#' 
+longest_substring <-function(a, b, default = NA_character_)
 {
   A <- strsplit(a, "")[[1]]
   B <- strsplit(b, "")[[1]]
@@ -179,35 +190,43 @@ longest_substring <-function(a,b)
     out1 <- paste0(A[(-max(L) + 1):0 + which(L == max(L), arr.ind = TRUE)[1]], # De [1] zorgt ervoor dat de meest linkse match genomen wordt
                    collapse = "")
   } else {
-    out1 <- NA_character_
+    out1 <- default
   }
   return(out1)
 }
 
 
 
-#' Longest_substring_vec
+#' Find Longest Common Substring (Vectorised)
 #'
-#' A wrapper that vectorizes function longest_substring. Allows an input vector and either a vector or matrix output.
+#' A wrapper that vectorizes function \code{\link{longest_substring}}, allowing an input vector and either a vector or matrix output.
 #'
 #' @param a a character vector
 #' @param b a character vector, or \code{NULL} (default) indicating taking \code{a} as \code{b}
-#' @param default value when no matching substring is found. By default \code{NA_character_}
-#' @param matrix_out logical. If \code{TRUE}, returns a matrix of common substrings. If \code{FALSE} returns a vector of common substrings.
-#' @param USE.NAMES logical. If \code{TRUE}, displays names in output. If \code{matrix_out = FALSE}, names of \code{a} will be used.
+#' @param default value to return when no matching substring is found. By default \code{NA_character_}
+#' @param matrix_out logical. If \code{TRUE}, returns a matrix of common substrings. If \code{FALSE}, 
+#' returns a vector of common substrings.
+#' @param USE.NAMES logical. If \code{TRUE}, displays names in output. If \code{matrix_out = FALSE}, 
+#' names of \code{a} will be used.
 #' 
+#' @return Depending on \code{matrix_out} either a vector or a matrix of longest common substrings. 
+#' If \code{matrix_out = TRUE}, returns a matrix of longest common substring for each of the elements 
+#' of \code{a} and \code{b}, with rows and columns corresponding to \code{a} and \code{b} respectively.
+#' If \code{matrix_out = FALSE}, returns a vector of common substrings for the corresponding elements
+#' in vector \code{a} and \code{b}.
+#'
 longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_out = is.null(b),
-                                  USE.NAMES = TRUE) {
+                                  USE.NAMES = matrix_out) {
   a <- as.character(a)
   
   if (matrix_out){
     if (is.null(b)) {
       b <- a
-      m <- outer(a, b, Vectorize(longest_substring))
+      m <- outer(a, b, default = default, Vectorize(longest_substring))
       diag(m) <- default
     } else {
       b <- as.character(b)
-      m <- outer(a, b, Vectorize(longest_substring))
+      m <- outer(a, b, default = default, Vectorize(longest_substring))
     }
     
     if (USE.NAMES){
@@ -222,9 +241,9 @@ longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_o
     if(length(a) != length(b)){
       stop("Vector lengths do not match")
     }
-    m <- mapply(longest_substring, a, b, USE.NAMES = USE.NAMES)
+    m <- mapply(longest_substring, a, b, default = default, USE.NAMES = USE.NAMES)
     m[lengths(m) == 0] <- default
-    unlist(m)
+    return(unlist(m))
   }
 }
 

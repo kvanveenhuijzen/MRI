@@ -2,10 +2,10 @@
 % Please edit documentation in R/functions.R
 \name{longest_substring_vec}
 \alias{longest_substring_vec}
-\title{Longest_substring_vec}
+\title{Find Longest Common Substring (Vectorised)}
 \usage{
 longest_substring_vec(a, b = NULL, default = NA_character_,
-  matrix_out = is.null(b), USE.NAMES = TRUE)
+  matrix_out = is.null(b), USE.NAMES = matrix_out)
 }
 \arguments{
 \item{a}{a character vector}
@@ -14,10 +14,19 @@ longest_substring_vec(a, b = NULL, default = NA_character_,
 
 \item{default}{value when no matching substring is found. By default \code{NA_character_}}
 
-\item{matrix_out}{logical. If \code{TRUE}, returns a matrix of common substrings. If \code{FALSE} returns a vector of common substrings.}
+\item{matrix_out}{logical. If \code{TRUE}, returns a matrix of common substrings. If \code{FALSE}, 
+returns a vector of common substrings.}
 
-\item{USE.NAMES}{logical. If \code{TRUE}, displays names in output. If \code{matrix_out = FALSE}, names of \code{a} will be used.}
+\item{USE.NAMES}{logical. If \code{TRUE}, displays names in output. If \code{matrix_out = FALSE}, 
+names of \code{a} will be used.}
+}
+\value{
+Depending on \code{matrix_out} either a vector or a matrix of longest common substrings. 
+If \code{matrix_out = TRUE}, returns a matrix of longest common substring for each of the elements 
+of \code{a} and \code{b}, with rows and columns corresponding to \code{a} and \code{b} respectively.
+If \code{matrix_out = FALSE}, returns a vector of common substrings for the corresponding elements
+in vector \code{a} and \code{b}.
 }
 \description{
-A wrapper that vectorizes function longest_substring. Allows an input vector and either a vector or matrix output.
+A wrapper that vectorizes function \code{\link{longest_substring}}, allowing an input vector and either a vector or matrix output.
 }
