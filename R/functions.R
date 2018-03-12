@@ -190,21 +190,26 @@ longest_substring <-function(a,b)
 #'
 #' A wrapper that vectorizes function longest_substring. Allows an input vector and either a vector or matrix output.
 #'
-#'
-#'
-#'
-longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_out = FALSE,
-                                  USE.NAMES = FALSE) {
+#' @param a a character vector
+#' @param b a character vector, or \code{NULL} (default) indicating taking \code{a} as \code{b}
+#' @param default value when no matching substring is found. By default \code{NA_character_}
+#' @param matrix_out logical. If \code{TRUE}, returns a matrix of common substrings. If \code{FALSE} returns a vector of common substrings.
+#' @param USE.NAMES logical. If \code{TRUE}, displays names in output. If \code{matrix_out = FALSE}, names of \code{a} will be used.
+#' 
+longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_out = is.null(b),
+                                  USE.NAMES = TRUE) {
   a <- as.character(a)
   
   if (matrix_out){
     if (is.null(b)) {
       b <- a
+      m <- outer(a, b, Vectorize(longest_substring))
+      diag(m) <- default
     } else {
       b <- as.character(b)
+      m <- outer(a, b, Vectorize(longest_substring))
     }
-    m <- outer(a, b, Vectorize(longest_substring))
-    diag(m) <- NA
+    
     if (USE.NAMES){
       rownames(m) <- a
       colnames(m) <- b

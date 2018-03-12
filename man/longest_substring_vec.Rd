@@ -5,7 +5,16 @@
 \title{Longest_substring_vec}
 \usage{
 longest_substring_vec(a, b = NULL, default = NA_character_,
-  matrix_out = FALSE, USE.NAMES = FALSE)
+  matrix_out = is.null(b), USE.NAMES = FALSE)
+}
+\arguments{
+\item{a}{a character vector}
+
+\item{b}{a character vector, or NULL (default) indicating taking a as b}
+
+\item{default}{value when no matching substring is found. By default NA_character_}
+
+\item{matrix_out}{logical. If TRUE, returns a matrix of substrings}
 }
 \description{
 A wrapper that vectorizes function longest_substring. Allows an input vector and either a vector or matrix output.
