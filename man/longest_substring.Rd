@@ -4,7 +4,7 @@
 \alias{longest_substring}
 \title{Find Longest Common Substring}
 \usage{
-longest_substring(a, b)
+longest_substring(a, b, default = NA_character_)
 }
 \arguments{
 \item{a}{a character.}
@@ -17,5 +17,5 @@ of equal length are found, function will return the leftmost string.
 }
 \description{
 Find the longest common substring in two character strings. For character vectors, 
-use \code{\link{longest_substring_vec}}.
+use \link[=longest_substring_vec]{longest_substring_vec}.
 }

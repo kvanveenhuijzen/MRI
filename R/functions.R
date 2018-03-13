@@ -166,7 +166,7 @@ excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == 
 #' Find Longest Common Substring
 #'
 #' Find the longest common substring in two character strings. For character vectors, 
-#' use \code{\link{longest_substring_vec}}.
+#' use \code{\link{longest_substring_vec}}. 
 #'
 #' @param a a character.
 #' @param b a character.
@@ -199,7 +199,8 @@ longest_substring <-function(a, b, default = NA_character_)
 
 #' Find Longest Common Substring (Vectorised)
 #'
-#' A wrapper that vectorizes function \code{\link{longest_substring}}, allowing an input vector and either a vector or matrix output.
+#' A wrapper that vectorizes function \code{\link{longest_substring}}, allowing an input vector and 
+#' either a vector or matrix output.
 #'
 #' @param a a character vector
 #' @param b a character vector, or \code{NULL} (default) indicating taking \code{a} as \code{b}

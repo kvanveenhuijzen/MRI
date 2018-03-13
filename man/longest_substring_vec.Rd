@@ -12,7 +12,7 @@ longest_substring_vec(a, b = NULL, default = NA_character_,
 
 \item{b}{a character vector, or \code{NULL} (default) indicating taking \code{a} as \code{b}}
 
-\item{default}{value when no matching substring is found. By default \code{NA_character_}}
+\item{default}{value to return when no matching substring is found. By default \code{NA_character_}}
 
 \item{matrix_out}{logical. If \code{TRUE}, returns a matrix of common substrings. If \code{FALSE}, 
 returns a vector of common substrings.}
@@ -28,5 +28,6 @@ If \code{matrix_out = FALSE}, returns a vector of common substrings for the corr
 in vector \code{a} and \code{b}.
 }
 \description{
-A wrapper that vectorizes function \code{\link{longest_substring}}, allowing an input vector and either a vector or matrix output.
+A wrapper that vectorizes function \code{\link{longest_substring}}, allowing an input vector and 
+either a vector or matrix output.
 }
