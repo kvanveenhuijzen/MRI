@@ -64,7 +64,7 @@ library(tidyr)
 # additionally needed packages: igraph
 
 # load data
-d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180221_progeny.xlsx"), col_types = "text"))
+d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180320_progeny.xlsx"), col_types = "text"))
 format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 1))
 dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 2))
 
@@ -289,7 +289,7 @@ l2 <- lapply(gr1, function(x){
                   "percentage wat je over houdt.")
   
   #voeg ProgenyFU_<var> toe een longitudinale datasets
-  long3[, ProgenyFU_:=seq_len(.N), by = ALSnr]
+  long3[, ProgenyFU_:=as.character(seq_len(.N)), by = ALSnr]
   setnames(long3, old = "ProgenyFU_", new = progenyFU1)
   
   #return
@@ -309,6 +309,61 @@ coln2 <- colnames(d2)[!colnames(d2) %in% coln1]
 d3 <- d2[, ..coln2]
 d3 <- d3[rowSums(!is.na(d3))>2,] # >2 omdat ALSnr en ALSnr_NA er altijd in staan
 
+
+#############################################
+####  CHECK WIDE DATA FOR LONG VARIABLES ####
+#############################################
+
+# List all colnames from each long3 object
+longcols1 <- lapply(long3, colnames)
+
+# Check if 
+test1 <- sapply(longcols1, function(i){
+  testcols1 <- gsub("@.*", "", i)
+  widecols1 <- gsub("@.*", "", colnames(d3))
+  sum(testcols1 %in% widecols1) > 1
+})
+
+if(length(names(long3)[test1]) > 0){
+  for (i in names(long3)[test1]){
+    
+    # 
+    nlong1 <- nrow(long3[[i]])
+    colnames(long3[[i]]) <- gsub("@.*", "", colnames(long3[[i]]))
+    matchcols1 <- gsub("@.*", "", colnames(d3)) %in% colnames(long3[[i]])
+    
+    
+    # 
+    temp1 <- d3[,matchcols1, with=F]
+    colnames(temp1) <- gsub("@.*", "", colnames(temp1))
+    temp1 <- temp1[rowSums(!is.na(temp1))>1]
+    temp1[, paste0("ProgenyFU_", names(long3[i])) := "w"]
+    nwide1 <- nrow(temp1)
+    
+    # 
+    identicol1 <- identical(colnames(long3[[i]]), colnames(temp1))
+    long3[[i]] <- rbind(long3[[i]], temp1, fill = TRUE)
+    nlong2 <- nrow(long3[[i]])
+    
+    # Verwijder kolommen uit cross data.
+    coln1 <- colnames(d3)[matchcols1]
+    coln1 <- coln1[-which(coln1=="ALSnr")]
+    coln2 <- colnames(d3)[!colnames(d3) %in% coln1]
+    d3 <- d3[, ..coln2]
+    d3 <- d3[rowSums(!is.na(d3)) > 2,] # >2 omdat ALSnr en ALSnr_NA er altijd in staan
+    
+    # Maak meldingen
+    meld1 <- paste0("Voor de variabelen uit de groep ", names(long3[i]), " werden ", nwide1,
+                    " entries uit de wide data (d3) toegevoegd aan de bestaande ", nlong1, " entries uit ",
+                    "de longitudinale data (long3), resulterend in een totaal van ", nlong2, " entries.")
+    if (identicol1){
+      meld1 <- paste0(meld1, " Alle kolommen uit long3$", names(long3[i]), " waren aanwezig in d3.")
+    } else {
+      meld1 <- paste0(meld1, " LET OP: niet alle kolommen uit long3$", names(long3[i]), " waren aanwezig in d3.")
+    }
+    mm <- c(mm, meld1)
+  }
+}
 
 ##############################
 ####  WIDE TO LONG FORMAT ####
@@ -349,7 +404,7 @@ sgstems1 <- lapply(subgr1, function(i){
 })
 
 names(subgr1) <- unlist(sgstems1)
-sgstems2 <- unlist(unique(sgstems1))
+sgstems2 <- na.omit(unlist(unique(sgstems1)))
 
 # Check of elke groep bij een 'supergroep' hoort, op basis van terugkerende overlaps.
 mat2 <- longest_substring_vec(sgstems2, matrix_out = TRUE, USE.NAMES = TRUE)
