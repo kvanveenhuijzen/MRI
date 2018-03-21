@@ -20,7 +20,7 @@ setclass2 <- function(dt, cols, new_class){
   
   dt0 <- copy(dt)
   dt <- dt[, ..cols]
-  dt[] <- lapply(dt, function(x) as.character(x)) #change all classes to character
+  dt <- dt[,lapply(.SD,as.character)] #change all classes to character
   for (i in unique(new_class)){
     coln1 <- which(new_class == i)
     class1 <- paste0("as.", i)
