@@ -20,7 +20,7 @@ setclass2 <- function(dt, cols, new_class){
   
   dt0 <- copy(dt)
   dt <- dt[, ..cols]
-  dt[] <- lapply(dt, function(x) as.character(x)) #change all classes to character
+  dt <- dt[,lapply(.SD,as.character)] #change all classes to character
   for (i in unique(new_class)){
     coln1 <- which(new_class == i)
     class1 <- paste0("as.", i)
@@ -171,7 +171,7 @@ excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == 
 #' @param a a character.
 #' @param b a character.
 #' 
-#' @return Returns the longest common substring of two character. If multiple longest substrings 
+#' @return Returns the longest common substring of two characters. If multiple longest substrings 
 #' of equal length are found, function will return the leftmost string.
 #' 
 longest_substring <-function(a, b, default = NA_character_)

@@ -12,10 +12,10 @@ longest_substring(a, b, default = NA_character_)
 \item{b}{a character.}
 }
 \value{
-Returns the longest common substring of two character. If multiple longest substrings 
+Returns the longest common substring of two characters. If multiple longest substrings 
 of equal length are found, function will return the leftmost string.
 }
 \description{
 Find the longest common substring in two character strings. For character vectors, 
-use \link[=longest_substring_vec]{longest_substring_vec}.
+use \code{\link{longest_substring_vec}}.
 }
