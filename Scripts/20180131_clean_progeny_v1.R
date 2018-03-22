@@ -565,7 +565,6 @@ dep4[, long_to:=to %in% long_names]
 # Bepaald eerst de locaties van waardes die op NA gezet moeten worden.
 message1 <- list()
 toNA1 <- list()
-old1 <- countNA(merge1, cols = "all")
 for (x in 1:nrow(dep4)){
   g2_spath <- igraph::all_shortest_paths(g2, from = dep4$from[x])
   NA1 <- unique(names(unlist(g2_spath$res))) # "downstream" variables
@@ -583,6 +582,10 @@ toNA2 <- toNA1[which(sapply(lapply(toNA1, "[[", 1), length)>0)]
 
 # zet alles daadwerkelijk op NA
 d5 <- copy(d4)
+old1 <- lapply(1:length(d5), function(x){
+  countNA(d5[[x]], cols = "all")
+})
+names(old1) <- names(d5)
 for (x in 1:length(toNA2)){
   #check of er geen verplaatsingen opgetreden zijn in d5 (of d4), waarschijnlijk wel erg definisief. Dus omdat het kan :-).
   check1 <- unname(sapply(gsub("^@", "", toNA2[[x]][[2]]$index), function(y) which(names(d5) == y)))
@@ -607,11 +610,18 @@ for (x in 1:length(toNA2)){
 }
 
 #meldingen
-new1 <- countNA(merge1, cols = "all")
+new1 <- lapply(1:length(d5), function(x){
+  countNA(d5[[x]], cols = "all")
+})
+names(old1) <- names(d5)
 reason1 <- "deze datum voor of na een andere datum voorkwam (wat onmogelijk is), zoals bijv. DoO voor DoB."
-mm <- c(mm, list(summaryNA(old1, new1, name_data = "merge1", reason = reason1)))
+mm_add <- lapply(1:length(new1), function(x){
+  summaryNA(old1[[x]], new1[[x]], name_data = names(new1)[[x]], reason = reason1)
+})
+mm <- c(mm, mm_add)
 
-#postprocess messages
+# postprocess messages
+# OPMERKING: message2 (hieronder) moeten tzt in mm2 komen (zie issue #19)
 message2 <- message1[which(sapply(message1, dim)[1,] > 0)]
 message2 <- c(paste0("Hieronder volgt een lijst van discrepante dates. ",
                      "Deze dates zijn op NA gezet, evenals de 'downstream' dates ",
@@ -634,7 +644,13 @@ del_hulp <- lapply(1:length(d5), function(x){
 })
 rm(del_hulp)
 
-#nieuwe dataset (cross en long gecombineerd) zit in d5
+# zet d5 terug in d4 (cross-sectional) en verwijder d5
+# maak ook long4 voor longitudinale data
+d4 <- d5$cross
+long4 <- d5[-which(names(d5)=="cross")]
+rm(d5)
+
+
 
 
 
