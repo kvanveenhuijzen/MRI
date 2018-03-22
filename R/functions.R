@@ -171,7 +171,7 @@ excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == 
 #' @param a a character.
 #' @param b a character.
 #' 
-#' @return Returns the longest common substring of two character. If multiple longest substrings 
+#' @return Returns the longest common substring of two characters. If multiple longest substrings 
 #' of equal length are found, function will return the leftmost string.
 #' 
 longest_substring <-function(a, b, default = NA_character_)

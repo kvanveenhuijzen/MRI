@@ -20,7 +20,7 @@
 # 6.  check regex
 # 7.  cross vs long data
 # 8.  wide to long format
-# 9.  sumscores ALSFRS-R (tzt verder naar beneden plaatsen)
+# 9.  clean by definitions (tzt verder naar beneden plaatsen)
 # 10. check dates
 # 11. definite split of cross and long data
 
@@ -501,10 +501,11 @@ long3 <- c(long3, wlong_list1)
 d3 <- d3[, !colnames(d3) %in% unique(unlist(subgr1)), with = FALSE]
 
 
-##############################
-####  SUMSCORES ALSFRS-R  ####
-##############################
+################################
+####  CLEAN BY DEFINITIONS  ####
+################################
 
+# ALSFRS-R
 # maak vraag 5 van de ALSFRS-R in orde
 DEFINITION_q5(A = "ALSFRS_q5a", B = "ALSFRS_q5b", data = long3$ALSFRS_R)
 
@@ -526,6 +527,10 @@ setorderv(x = long3$ALSFRS_R, cols = c("ALSnr", "DoALSFRS", "ALSFRS_score"), ord
 mm <- c(mm, paste0("MELDING: Longitudinale data van ALSFRS geordend: ",
                    "Eerste ALSFRS (qua datum) of anders hoogste ALSFRS (qua score) bovenaan. ",
                    "Omdat er mogelijk later nog datums op NA gezet worden nog geen kolom met order toegevoegd."))
+
+# ECAS BEHAVIOUR
+long3$ECAS <- DEFINITION_ECAS_BHV(long3$ECAS)
+# Hier ook meldingen van maken?
 
 
 #######################
