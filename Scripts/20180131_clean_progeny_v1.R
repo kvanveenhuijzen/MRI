@@ -30,8 +30,8 @@
 ####################
 
 # package dir
-#DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
-DIR1 <- "/Users/htan4/Documents/Rprojects/ResearchR" # Harold
+DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
+#DIR1 <- "/Users/htan4/Documents/Rprojects/ResearchR" # Harold
 
 # source settings
 source(paste0(DIR1, "/R/settings.R"))
@@ -65,6 +65,7 @@ library(tidyr)
 
 # load data
 d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180320_progeny.xlsx"), col_types = "text"))
+
 format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 1))
 dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 2))
 
@@ -548,12 +549,27 @@ if(all(dep3$value==-1)==FALSE){
 }
 
 # merge cross & long data (tijdelijk)
-key1 <- lapply(long3, function(x){
-  setkey(x, ALSnr)
+# en voeg kolom met index toe
+# en maak hier een overzicht van (gebeurd allemaal in key1 hieronder)
+d4 <- c(cross = list(d3) , copy(long3))
+key1 <- lapply(1:length(d4), function(x){
+  #overzicht met kolomnamen per groep
+  name1 <- names(d4)[x]
+  name2 <- colnames(d4[[x]])
+  out1 <- cbind.data.frame(vars = name2, index = rep(paste0("@", name1), length(name2)), n_list = x)
+  
+  #voeg index toe
+  d4[[x]][, index1:=.I]
+  setnames(d4[[x]], old = "index1", new = paste0("@", names(d4)[x]))
+  
+  #setkey
+  setkey(d4[[x]], ALSnr)
+  
+  return(out1)
 })
-long4 <- unique(Reduce(merge_list_cart, key1))
-setkey(d3, ALSnr)
-merge1 <- merge(d3, long4, all.x = TRUE)
+key2 <- rbindlist(key1)
+
+merge1 <- unique(Reduce(merge_list_cart, d4))
 
 #geef nog een warning voor dates die niet in Sheet2 van Format_v1.xlsx stonden
 dates_merge1 <- grep("Do", colnames(merge1), ignore.case = FALSE, value = TRUE)
@@ -607,7 +623,9 @@ dep4[, long_to:=to %in% long_names]
 # indien er een fout gevonden wordt, zet dan ook alle variabelen "downstream" (i.e. tussen
 # onderzochte variabele en (in tijd) de laatste variabele, i.e. meestal dood) op NA, BEHALVE
 # als het longitudinale data betreft, dan alleen longitudinale variabele op NA zetten.
+# Bepaald eerst de locaties van waardes die op NA gezet moeten worden.
 message1 <- list()
+toNA1 <- list()
 old1 <- countNA(merge1, cols = "all")
 for (x in 1:nrow(dep4)){
   g2_spath <- igraph::all_shortest_paths(g2, from = dep4$from[x])
@@ -617,11 +635,39 @@ for (x in 1:nrow(dep4)){
   message1[[x]] <- unique(merge1[get(dep4$from[x]) > get(dep4$to[x]),
                                  j = c("ALSnr", dep4$from[x], dep4$to[x]), with = FALSE])
   
-  # zet alles op NA wat "downstream" connected is
-  # dit is zeer streng maar waarschijnlijk wel het veiligste
-  set(merge1, i = merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE],
-      j = NA1, value = NA)
+  #indices
+  row1 <- merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE]
+  col1 <- key2[vars %in% NA1]
+  toNA1[[x]] <- list(row1, col1)
 }
+toNA2 <- toNA1[which(sapply(lapply(toNA1, "[[", 1), length)>0)]
+
+# zet alles daadwerkelijk op NA
+d5 <- copy(d4)
+for (x in 1:length(toNA2)){
+  #check of er geen verplaatsingen opgetreden zijn in d5 (of d4), waarschijnlijk wel erg definisief. Dus omdat het kan :-).
+  check1 <- unname(sapply(gsub("^@", "", toNA2[[x]][[2]]$index), function(y) which(names(d5) == y)))
+  if(!identical(check1, toNA2[[x]][[2]]$n_list)){
+    stop("Er lijkt een verschuiving in d4 of d5 te zijn. Oplossen voor dat je verder gaat.")
+  }
+  
+  #loop over items in toNA2
+  toNA3 <- toNA2[[x]][[1]]
+  toNA4 <- toNA2[[x]][[2]]
+  for(y in 1:nrow(toNA4)){
+    yy <- as.character(toNA4$index[y])
+    idx1 <- unique(na.omit(merge1[toNA3, ..yy])) #nummers in @<group> (i.e. indices, per group variabelen)
+    
+    row1 <- d5[[toNA4$n_list[y]]][idx1, on = yy, which = TRUE]
+    col1 <- as.character(toNA4$vars[y])
+    
+    # zet alles op NA wat "downstream" connected is
+    # dit is zeer streng maar waarschijnlijk wel het veiligste
+    set(d5[[toNA4$n_list[y]]], i = row1, j = col1, value = NA)
+  }
+}
+
+#meldingen
 new1 <- countNA(merge1, cols = "all")
 reason1 <- "deze datum voor of na een andere datum voorkwam (wat onmogelijk is), zoals bijv. DoO voor DoB."
 mm <- c(mm, list(summaryNA(old1, new1, name_data = "merge1", reason = reason1)))
@@ -633,59 +679,23 @@ message2 <- c(paste0("Hieronder volgt een lijst van discrepante dates. ",
                      "(zoals beschreven in g2)."), message2)
 mm <- c(mm, list(message2))
 
+#voeg nog 1 check uit (waarschijnlijk overbodig, maar toch maar voor de zekerheid)
+check2 <- identical(sapply(d5, dim), sapply(d4, dim))
+if(check2 == FALSE){
+  mm <- c(mm, paste0("ERROR: tijdens het controleren van discrepante waardes zijn er kolommen/rijen ",
+                     "bijgekomen over verdwenen. Oplossen voordat je verder gaat."))
+  stop("FOUT!")
+}
 
-###############################################
-####  DEFINITE SPLIT OF CROSS & LONG DATA  ####
-###############################################
-
-# colnames in long3
-coln_long3 <- lapply(long3, function(x){
-  colnames(x)
+#verwijder hulpkolommen (met indices) uit d5
+del_hulp <- lapply(1:length(d5), function(x){
+  name1 <- names(d5)[x]
+  name2 <- paste0("@", name1)
+  d5[[x]][, (name2) := NULL]
 })
+rm(del_hulp)
 
-# longitudinale dataset
-long4 <- lapply(coln_long3, function(x){
-  df1 <- merge1[, ..x]
-  df1[, count_na:=rowSums(is.na(df1))]
-  df2 <- df1[count_na < (ncol(df1)-2)] # -2 omdat je altijd ALSnr en nu ook count_na hebt
-  df3 <- unique(df2)
-  df3[, count_na:=NULL]
-  return(df3)
-})
-
-# cross-sectionele dataset
-coln_cross <- c("ALSnr", setdiff(colnames(merge1), unique(unlist(coln_long3))))
-d4 <- unique(merge1[, ..coln_cross])
-
-# zet per subject iedere variabele op NA als er >0 keer een NA in die variabele voorkomt
-# dit is nodig omdat je soms een bij longitudinale data een keer een datum op NA gezet hebt
-# maar dit kan nog niet in de cross-sectionele data consistent doorgevoerd is
-dub1 <- d4$ALSnr[duplicated(d4$ALSnr)]
-for (x in dub1){
-  df1 <- d4[ALSnr == x]
-  NA_row <- d4[ALSnr == x, which = TRUE]
-  NA_col <- names(which(colSums(is.na(df1)) > 0))
-  set(d4, i = NA_row, j = NA_col, value = NA)
-}
-d4 <- unique(d4)
-
-# checks of long en cross data (na bewerking) weer klopt. Indien fout, geef error; indien goed, zet in mm.
-# zijn er in de longitudinale data rijen of kolommen bijgekomen of af gegaan (als het goed is niet)?
-if(identical(lapply(long3, dim), lapply(long4, dim)) == FALSE){
-  stop("long3 en long4 hebben niet dezelfde dimensies. Waarschijnlijk is er iets fout gegaan. Oplossen voor dat je verder gaat.")
-}else{
-  mm <- c(mm, paste0("long3 en long4 hebben dezelfde dimensies. Geen aanwijzingen voor fouten hierin."))
-}
-# heeft ieder subject in de cross-sectionele data exact 1 rij?
-check1 <- nrow(d4[ALSnr %in% d4$ALSnr[duplicated(d4$ALSnr)]])
-check2 <- identical(sort(unique(d4$ALSnr)), sort(unique(d3$ALSnr)))
-if(check1 != 0 | check2 == FALSE){
-  stop("Er komen duplicated ALSnrs voor in d4 en/of de ALSnrs van d3 en d4 komen niet exact overeen. Oplossen voordat je verder gaat.")
-}else{
-  mm <- c(mm, paste0("Ieder uniek ALSnr in d4 heeft exact 1 rij. Ieder uniek ALSnr in d3 komt ook in d4 voor ",
-                     "en vice versa. Geen aanwijzingen voor fouten hierin."))
-}
-
+#nieuwe dataset (cross en long gecombineerd) zit in d5
 
 
 
