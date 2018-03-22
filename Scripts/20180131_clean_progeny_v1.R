@@ -580,8 +580,8 @@ if(length(miss1) > 0){
                      "maar wel in de dataset (merge1). Overweeg om ", paste(miss1, collapse = ", "),
                      " alsnog op te nemen in Sheet2 van Format_v1.xlsx."))
 }else{
-  mm <- c(mm, "Alle dates in de dataset (merge1) komen ook voor in Sheet2 van Format_v1.xlsx. ",
-          "Hier geen aanwijzingen voor fouten.")
+  mm <- c(mm, paste0("Alle dates in de dataset (merge1) komen ook voor in Sheet2 van Format_v1.xlsx. ",
+          "Hier geen aanwijzingen voor fouten."))
 }
 
 # zorg dat alle namen in dep3 ook voorkomen in colnames(merge1)
