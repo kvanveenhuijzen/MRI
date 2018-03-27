@@ -254,4 +254,48 @@ longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_o
 merge_list <- function(...) merge(..., all = TRUE)
 merge_list_cart <- function(...) merge(..., all = TRUE, allow.cartesian = TRUE)
 
-  
+
+
+
+###########################
+###  ANALYSIS FUNCTIONS ###
+###########################
+
+# Note: Deze functies zijn handig voor het daadwerkelijk gebruiken van de output. 
+# Even de vraag of deze hier kunnen blijven of dat we ze tzt verplaatsen naar een ander .R file.
+
+#' Calculate Age (or Time Difference) from Dates
+#' 
+#' Calculates the difference between two dates and returns a numeric value (Age).
+#' 
+#' @param DoEvent a vector of class 'Date'
+#' @param DoBirth a vector of class 'Date'
+#' @param format unit in which the output should be returned. Options are \code{"years"} (default), 
+#' \code{"months"} and \code{"days"}.
+#' 
+#' @return Returns a numerical vector of the time difference between the two input vector Dates,
+#'  calculated as \code{DoEvent - DoBirth}. Output can be given in units of years (default), 
+#'  months or days, specified in \code{format}.
+#'
+#' @examples 
+#' #Calculate age of onset (from ResearchR package).
+#' Age_onset <- ageify(d4$DoO, d4$DoB)
+#' 
+#' # For data.table output in ResearchR package
+#' library(data.table)
+#' d4[, c("AoO", "AoDiag") := lapply(.SD, ageify, DoBirth=DoB), 
+#'    .SDcols=c("DoO","DoDiag")]
+#' 
+#' 
+ageify <- function(DoEvent, DoBirth, format = "years") {
+  if (!inherits(DoEvent, "Date")| !inherits(DoBirth, "Date")){
+    stop("Input vectors are not of class 'Date'")
+  }
+  Age_days <- as.numeric(DoEvent - DoBirth)
+  switch (tolower(format),
+          days = return(Age_days),
+          years = return(Age_days/365.25),
+          months= return(Age_days/365.25*12),
+          stop(paste0("Unknown format: ",format)))
+}
+
