@@ -196,8 +196,12 @@ val2 <- strsplit(val1$Possible_values, split = "\\|")
 old1 <- countNA(d2, cols = "all")
 for (x in 1:length(val2)){
   set(d2, i = which(!d2[[val1$Rename[x]]] %in% val2[[x]]), j = val1$Rename[x], value = NA)
-  d2[,(val1$Rename[x]) := droplevels(get(val1$Rename[x]))]
 }
+
+# Drop all unused factor levels.
+fac.cols = sapply(d2, is.factor)
+d2[, names(d2)[fac.cols] := lapply(.SD, droplevels), .SDcols = fac.cols]
+
 new1 <- countNA(d2, cols = "all")
 reason1 <- "de waarde van deze variabele(n) niet voorkwam in de 'possible values'."
 mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
