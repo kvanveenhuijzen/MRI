@@ -5,4 +5,5 @@
 .Rbuildignore
 ._*
 /Progeny
+/PersonalScripts
 Rplots.pdf
