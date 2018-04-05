@@ -30,8 +30,8 @@
 ####################
 
 # package dir
-DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
-#DIR1 <- "/Users/htan4/Documents/Rprojects/ResearchR" # Harold
+#DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
+DIR1 <- "/Users/htan4/Documents/Rprojects/ResearchR" # Harold
 
 # source settings
 source(paste0(DIR1, "/R/settings.R"))
@@ -64,7 +64,7 @@ library(tidyr)
 # additionally needed packages: igraph
 
 # load data
-d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180320_progeny.xlsx"), col_types = "text"))
+d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180328_progeny.xlsx"), col_types = "text"))
 
 format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 1))
 dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 2))
