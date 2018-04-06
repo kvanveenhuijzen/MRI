@@ -64,7 +64,7 @@ library(tidyr)
 # additionally needed packages: igraph
 
 # load data
-d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180328_progeny.xlsx"), col_types = "text"))
+d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180406_progeny.xlsx"), col_types = "text"))
 
 format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 1))
 dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 2))
@@ -574,7 +574,18 @@ key1 <- lapply(1:length(d4), function(x){
 })
 key2 <- rbindlist(key1)
 
-merge1 <- unique(Reduce(merge_list_cart, d4))
+# Creeer merge 1 object, waar alle combinaties van datums binnen een subject gegenereerd worden (Cartesian merge)
+# Omdat een cartesian merge bij een groot aantal longitudinale datasets enorm wordt, worden nu alleen de
+# datum variabelen geselecteerd.
+list_cols1 <- lapply(d4, colnames)
+list_cols2 <- lapply(list_cols1, grep, pattern="^ALSnr$|^Do|^@", value = T)
+merge1a <- lapply(seq_along(d4), function(i){
+  dt <- d4[[i]]
+  cols <- list_cols2[[i]]
+  out <- dt[,(cols), with = FALSE]
+}) 
+merge1 <- unique(Reduce(merge_list_cart, merge1a))
+#Oude code: merge1 <- unique(Reduce(merge_list_cart, d4))
 
 #geef nog een warning voor dates die niet in Sheet2 van Format_v1.xlsx stonden
 dates_merge1 <- grep("Do", colnames(merge1), ignore.case = FALSE, value = TRUE)
