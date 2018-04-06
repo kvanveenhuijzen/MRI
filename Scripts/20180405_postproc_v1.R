@@ -78,15 +78,20 @@ firstScores1 <- lapply(dlong1, function(i){
 ###################
 
 #### VOORBEELD ####
+# Select patient population
 ALS1 <- dcross1[Diag=="ALS"]
 ALS1 <- merge(ALS1, firstScores1$ALSFRS_R, all.x = TRUE, by="ALSnr")
 
-#
+# Select comparison groups (multiple groups possible)
+stratifyBy <- c("SoO")
+
+
+# Select variables: Standard variables have been predefined.
 vars <- c("Gender", "AoO", "AoDiag", "SoO", "SurvOnset", "Familial", "FTD", "ALSFRS_score","ALSFRS_slope", "ISCED")
 factorVars <- c("Gender", "SoO", "Familial", "FTD", "ISCED")
 varsCont <- c("AoO", "AoDiag", "SoO", "SurvOnset", "ALSFRS_score","ALSFRS_slope")
 
-tableOne <- CreateTableOne(vars = vars, strata = c("SoO"), data = ALS1, factorVars = factorVars, includeNA = T)
+tableOne <- CreateTableOne(vars = vars, strata = stratifyBy , data = ALS1, factorVars = factorVars, includeNA = T)
 print(tableOne, nonnormal= varsCont, minMax=T, cramVars = "Gender", quote=T, noSpaces = T, missing = TRUE)
 
 ##################
