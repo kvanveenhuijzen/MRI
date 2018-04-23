@@ -174,6 +174,7 @@ excel_numeric_to_date <- function (date_num, date_system = ifelse(MODERN_MAC == 
 #' @return Returns the longest common substring of two characters. If multiple longest substrings 
 #' of equal length are found, function will return the leftmost string.
 #' 
+#' @export
 longest_substring <-function(a, b, default = NA_character_)
 {
   A <- strsplit(a, "")[[1]]
@@ -216,6 +217,7 @@ longest_substring <-function(a, b, default = NA_character_)
 #' If \code{matrix_out = FALSE}, returns a vector of common substrings for the corresponding elements
 #' in vector \code{a} and \code{b}.
 #'
+#' @export
 longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_out = is.null(b),
                                   USE.NAMES = matrix_out) {
   a <- as.character(a)
@@ -287,6 +289,7 @@ merge_list_cart <- function(...) merge(..., all = TRUE, allow.cartesian = TRUE)
 #'    .SDcols=c("DoO","DoDiag")]
 #' 
 #' 
+#' @export
 ageify <- function(DoEvent, DoBirth, format = "years") {
   if (!inherits(DoEvent, "Date")| !inherits(DoBirth, "Date")){
     stop("Input vectors are not of class 'Date'")
