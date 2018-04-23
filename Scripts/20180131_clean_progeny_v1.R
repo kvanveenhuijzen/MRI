@@ -194,7 +194,10 @@ mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 val1 <- rename1[!is.na(Possible_values)]
 val2 <- strsplit(val1$Possible_values, split = "\\|")
 old1 <- countNA(d2, cols = "all")
+
 d2a <- copy(d2) # temporary for testing
+meld1 <- list()
+
 for (x in 1:length(val2)){
   Case <- !(d2[[val1$Rename[x]]] %in% val2[[x]])
   IgnoreCase <- !(tolower(d2[[val1$Rename[x]]]) %in% tolower(val2[[x]]))
@@ -213,17 +216,20 @@ for (x in 1:length(val2)){
     # NOG GEEN TESTS INGEBOUWD
     d2[which(Case & !IgnoreCase)] <- d2[which(Case & !IgnoreCase)][,(val1$Rename[x]) := newval1]
     
-    # melding? paste0("Reformatted ", length(newval1), " values for column: ", val1$Rename[x])
+    # melding? 
+    meld1 <- c(meld1,paste0("Reformatted ", length(newval1), " values for column: ", val1$Rename[x]))
   }
 }
 
 # Drop all unused factor levels.
 fac.cols = sapply(d2, is.factor)
-d2[, names(d2)[fac.cols] := lapply(.SD, droplevels), .SDcols = fac.cols]
+d2[, names(d2)[fac.cols] := lapply(.SD, droplevels, exclude = NA), .SDcols = fac.cols]
+
 
 new1 <- countNA(d2, cols = "all")
 reason1 <- "de waarde van deze variabele(n) niet voorkwam in de 'possible values'."
 mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
+mm <- c(mm, meld1)
 
 
 ########################
