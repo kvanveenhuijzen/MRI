@@ -194,8 +194,27 @@ mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 val1 <- rename1[!is.na(Possible_values)]
 val2 <- strsplit(val1$Possible_values, split = "\\|")
 old1 <- countNA(d2, cols = "all")
+d2a <- copy(d2) # temporary for testing
 for (x in 1:length(val2)){
-  set(d2, i = which(!d2[[val1$Rename[x]]] %in% val2[[x]]), j = val1$Rename[x], value = NA)
+  Case <- !(d2[[val1$Rename[x]]] %in% val2[[x]])
+  IgnoreCase <- !(tolower(d2[[val1$Rename[x]]]) %in% tolower(val2[[x]]))
+  
+  # if doesnt exist at all, set to NA
+  set(d2, i = which(Case & IgnoreCase), j = val1$Rename[x], value = NA)
+  
+  # if exists but in wrong case, set to right case
+  if (length(which(Case & !IgnoreCase)) > 0){
+    
+    # Use grep with ignore.case to find the right value. Add regex so no partial strings are matched.
+    reg1 <- paste0("^",d2[which(Case & !IgnoreCase),get(val1$Rename[x])],"$")
+    newval1 <- unlist(lapply(reg1 , grep, x = val2[[x]], ignore.case =  TRUE, value = TRUE))
+    newval1 <- factor(newval1, levels = levels(x = d2[,get(val1$Rename[x])]))
+    
+    # NOG GEEN TESTS INGEBOUWD
+    d2[which(Case & !IgnoreCase)] <- d2[which(Case & !IgnoreCase)][,(val1$Rename[x]) := newval1]
+    
+    # melding? paste0("Reformatted ", length(newval1), " values for column: ", val1$Rename[x])
+  }
 }
 
 # Drop all unused factor levels.
