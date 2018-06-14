@@ -64,7 +64,7 @@ library(tidyr)
 # additionally needed packages: igraph
 
 # load data
-d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180406_progeny.xlsx"), col_types = "text"))
+d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180606_progeny.xlsx"), col_types = "text"))
 
 format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 1))
 dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 2))
