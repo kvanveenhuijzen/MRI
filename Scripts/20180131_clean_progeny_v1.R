@@ -537,31 +537,37 @@ d3 <- d3[, !colnames(d3) %in% unique(unlist(subgr1)), with = FALSE]
 ################################
 
 # ALSFRS-R
-# maak vraag 5 van de ALSFRS-R in orde
-DEFINITION_q5(A = "ALSFRS_q5a", B = "ALSFRS_q5b", data = long3$ALSFRS_R)
 
-# maak sumsores
-long3$ALSFRS_R[, ALSFRS_score:=rowSums(long3$ALSFRS_R[, c(DEFINITION_Q_ALSFRSR())])]
-
-# check nog of 0 <= ALSFRS_score <= 48 is
-# (ip niet nodig omdat dit al door format1.xlsx gedekt wordt, maar voor de zekerheid ingebouwd)
-old1 <- countNA(long3$ALSFRS_R, cols = "all")
-set(long3$ALSFRS_R, i = which(long3$ALSFRS_R$ALSFRS_score>48), j = DEFINITION_Q_ALSFRSR(), value = NA)
-set(long3$ALSFRS_R, i = which(long3$ALSFRS_R$ALSFRS_score<0), j = DEFINITION_Q_ALSFRSR(), value = NA)
-new1 <- countNA(long3$ALSFRS_R, cols = "all")
-mm <- c(mm, list(summaryNA(old = old1, new = new1, name_data = "long3$ALSFRS_R")))
-
-# neem alleen unieke rijen (date zit er ook in) en orden ALSFRS-R
-# hoog is vroeg (-1 dus)
-long3$ALSFRS_R <- unique(long3$ALSFRS_R)
-setorderv(x = long3$ALSFRS_R, cols = c("ALSnr", "DoALSFRS", "ALSFRS_score"), order = c(1, 1, -1), na.last = TRUE)
-mm <- c(mm, paste0("MELDING: Longitudinale data van ALSFRS geordend: ",
-                   "Eerste ALSFRS (qua datum) of anders hoogste ALSFRS (qua score) bovenaan. ",
-                   "Omdat er mogelijk later nog datums op NA gezet worden nog geen kolom met order toegevoegd."))
+if (!is.null(long3$ALSFRS_R)){
+  # maak vraag 5 van de ALSFRS-R in orde
+  DEFINITION_q5(A = "ALSFRS_q5a", B = "ALSFRS_q5b", data = long3$ALSFRS_R)
+  
+  # maak sumsores
+  long3$ALSFRS_R[, ALSFRS_score:=rowSums(long3$ALSFRS_R[, c(DEFINITION_Q_ALSFRSR())])]
+  
+  # check nog of 0 <= ALSFRS_score <= 48 is
+  # (ip niet nodig omdat dit al door format1.xlsx gedekt wordt, maar voor de zekerheid ingebouwd)
+  old1 <- countNA(long3$ALSFRS_R, cols = "all")
+  set(long3$ALSFRS_R, i = which(long3$ALSFRS_R$ALSFRS_score>48), j = DEFINITION_Q_ALSFRSR(), value = NA)
+  set(long3$ALSFRS_R, i = which(long3$ALSFRS_R$ALSFRS_score<0), j = DEFINITION_Q_ALSFRSR(), value = NA)
+  new1 <- countNA(long3$ALSFRS_R, cols = "all")
+  mm <- c(mm, list(summaryNA(old = old1, new = new1, name_data = "long3$ALSFRS_R")))
+  
+  # neem alleen unieke rijen (date zit er ook in) en orden ALSFRS-R
+  # hoog is vroeg (-1 dus)
+  long3$ALSFRS_R <- unique(long3$ALSFRS_R)
+  setorderv(x = long3$ALSFRS_R, cols = c("ALSnr", "DoALSFRS", "ALSFRS_score"), order = c(1, 1, -1), na.last = TRUE)
+  mm <- c(mm, paste0("MELDING: Longitudinale data van ALSFRS geordend: ",
+                     "Eerste ALSFRS (qua datum) of anders hoogste ALSFRS (qua score) bovenaan. ",
+                     "Omdat er mogelijk later nog datums op NA gezet worden nog geen kolom met order toegevoegd."))
+}
 
 # ECAS BEHAVIOUR
-long3$ECAS <- DEFINITION_ECAS_BHV(long3$ECAS)
-# Hier ook meldingen van maken?
+if (!is.null(long3$ECAS)) {
+  long3$ECAS <- DEFINITION_ECAS_BHV(long3$ECAS)
+  # To do: Hier ook meldingen van maken?
+  
+}
 
 
 #######################
