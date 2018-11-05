@@ -24,7 +24,30 @@ setclass2 <- function(dt, cols, new_class){
   for (i in unique(new_class)){
     coln1 <- which(new_class == i)
     class1 <- paste0("as.", i)
-    dt[, (coln1) := lapply(.SD, class1), .SDcols = coln1][]
+    
+    if (i == "Date"){
+      is_date_val <- function(date_col) {
+        tryCatch(is.numeric(as.numeric(date_col)), warning = function(err) {FALSE})  
+      }
+      coln2 <- sapply(dt[,..coln1], is_date_val)
+      
+      
+      if (length(which(coln2)) > 0) {
+        coln3 <- coln1[coln2]
+        dt[, (coln3) := lapply(.SD, as.numeric), .SDcols = coln3][]
+        dt[, (coln3) := lapply(.SD, excel_numeric_to_date), .SDcols = coln3][]
+      }
+      
+      if (length(which(!coln2)) > 0) {
+        coln4 <- coln1[!coln2]
+        dt[, (coln4) := lapply(.SD, class1), .SDcols = coln4][]
+      }
+      
+      
+    } else {
+      dt[, (coln1) := lapply(.SD, class1), .SDcols = coln1][]
+    }
+    
   }
   #merge weer met kolommen die niet in cols voorkwamen
   coln2 <- which(!colnames(dt0) %in% colnames(dt))
