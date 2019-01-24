@@ -217,7 +217,8 @@ for (x in 1:length(val2)){
     d2[which(Case & !IgnoreCase)] <- d2[which(Case & !IgnoreCase)][,(val1$Rename[x]) := newval1]
     
     # melding? 
-    meld1 <- c(meld1,paste0("Reformatted ", length(newval1), " values for column: ", val1$Rename[x]))
+    meld1 <- c(meld1,paste0("Reformatted ", length(newval1), " values for column ", val1$Rename[x], 
+                            ", because of inconsistent use of lower/upper case letters."))
   }
 }
 
