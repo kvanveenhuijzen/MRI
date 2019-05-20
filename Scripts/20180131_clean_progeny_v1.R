@@ -152,6 +152,45 @@ melding1 <- ifelse(is.vector(summary1), "GOED: ",
 mm <- c(mm, add_mm(x = summary1, melding = melding1))
 
 
+########################
+####  CHECK  REGEX  ####
+########################
+
+# vul eerst even alle ALSnrs (=ID)
+#  ik ga er hierbij van uit dat ALSnr nooit missing is (en zo is het ook ingesteld in de query van 20180130_MRI1)
+ID1 <- rename1[Group=="ID"]
+if(nrow(ID1)!=1){
+  stop("Er is >1 of <1 Identifier aangegeven in rename1")
+}
+d2[, ALSnr_NA:=is.na(ALSnr)]
+d2 <- fill(d2, ALSnr)
+
+# verwijder rijen waarvan ALSnr niet aan Regex voldoet (indien Regex aanwezig is)
+if(!is.na(ID1$Regex)){
+  #old1 <- countNA(d2, cols = "ALSnr")
+  old1 <- nrow(d2)
+  d2 <- d2[grepl(ID1$Regex, ALSnr)]
+  d2[, ALSnr:=factor(ALSnr)] # ik ga er hier voor het gemak even vanuit dat de identifier altijd factor is
+  new1 <- nrow(d2)
+  mm <- c(mm, paste0("In d2, ", old1-new1, "/", old1, " (", roundHJ1((old1-new1)/old1*100, 2), "%)",
+                     " rijen verwijderd omdat identifier (i.e. ALSnr) niet voldeed aan de opgegeven regex."))
+  #new1 <- countNA(d2, cols = "ALSnr")
+}
+
+# check overige regex (indien aanwezig)
+regex1 <- rename1[!is.na(Regex)][Rename!="ALSnr"]
+if(nrow(regex1)>0){
+  old1 <-countNA(d2, cols = "all")
+  for (x in 1:nrow(regex1)){
+    val1 <- d2[,get(regex1$Rename[x])]
+    set(d2, i = grep(regex1$Regex[x], val1, invert = TRUE), j = regex1$Rename[x], value = NA)
+  }
+  new1 <- countNA(d2, cols = "all")
+  reason1 <- "de waarde van deze variabele(n) niet voorkwam in de gespecificeerde 'regex' (zie format1)."
+  mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
+}
+
+
 #####################################
 ####  CHECK MINIMUM AND MAXIMUM  ####
 #####################################
@@ -162,15 +201,23 @@ rename1_nondate1 <- rename1[Class!="Date"]
 
 #controleer minimum en maximum voor non-dates
 old1 <- countNA(d2, cols = "all")
+nalog1 <- list()
 for (x in 1:nrow(rename1_nondate1)){
   min1 <- minmax(rename1_nondate1$Minimum[x])
   max1 <- minmax(rename1_nondate1$Maximum[x])
   if(!is.na(min1)){
-    set(d2, i = which(d2[[rename1_nondate1$Rename[x]]] < min1), j = rename1_nondate1$Rename[x], value = NA)
+    imin1 <- which(d2[[rename1_nondate1$Rename[x]]] < min1)
+    j1 <- rename1_nondate1$Rename[x]
+    #minlog1 <-  d2[imin1, c(..j1]
+    set(d2, i = imin1, j = j1, value = NA)
   }
   if(!is.na(max1)){
-    set(d2, i = which(d2[[rename1_nondate1$Rename[x]]] > max1), j = rename1_nondate1$Rename[x], value = NA)
+    imax1 <- which(d2[[rename1_nondate1$Rename[x]]] > max1)
+    j1 <- rename1_nondate1$Rename[x]
+    maxlog1 <- d2[imax1, ..j1]
+    set(d2, i = imax1, j = j1, value = NA)
   }
+  #nalog1 <- c(nalog1, list(rbind(minlog1,maxlog1)))
 }
 new1 <- countNA(d2, cols = "all")
 reason1 <- "de waarde van deze variabele(n) niet tussen de gedefinieerde minimale en maximale waarden lag."
@@ -237,45 +284,6 @@ new1 <- countNA(d2, cols = "all")
 reason1 <- "de waarde van deze variabele(n) niet voorkwam in de 'possible values'."
 mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 mm <- c(mm, meld1)
-
-
-########################
-####  CHECK  REGEX  ####
-########################
-
-# vul eerst even alle ALSnrs (=ID)
-#  ik ga er hierbij van uit dat ALSnr nooit missing is (en zo is het ook ingesteld in de query van 20180130_MRI1)
-ID1 <- rename1[Group=="ID"]
-if(nrow(ID1)!=1){
-  stop("Er is >1 of <1 Identifier aangegeven in rename1")
-}
-d2[, ALSnr_NA:=is.na(ALSnr)]
-d2 <- fill(d2, ALSnr)
-
-# verwijder rijen waarvan ALSnr niet aan Regex voldoet (indien Regex aanwezig is)
-if(!is.na(ID1$Regex)){
-  #old1 <- countNA(d2, cols = "ALSnr")
-  old1 <- nrow(d2)
-  d2 <- d2[grepl(ID1$Regex, ALSnr)]
-  d2[, ALSnr:=factor(ALSnr)] # ik ga er hier voor het gemak even vanuit dat de identifier altijd factor is
-  new1 <- nrow(d2)
-  mm <- c(mm, paste0("In d2, ", old1-new1, "/", old1, " (", roundHJ1((old1-new1)/old1*100, 2), "%)",
-                     " rijen verwijderd omdat identifier (i.e. ALSnr) niet voldeed aan de opgegeven regex."))
-  #new1 <- countNA(d2, cols = "ALSnr")
-}
-
-# check overige regex (indien aanwezig)
-regex1 <- rename1[!is.na(Regex)][Rename!="ALSnr"]
-if(nrow(regex1)>0){
-  old1 <-countNA(d2, cols = "all")
-  for (x in 1:nrow(regex1)){
-    val1 <- d2[,get(regex1$Rename[x])]
-    set(d2, i = grep(regex1$Regex[x], val1, invert = TRUE), j = regex1$Rename[x], value = NA)
-  }
-  new1 <- countNA(d2, cols = "all")
-  reason1 <- "de waarde van deze variabele(n) niet voorkwam in de gespecificeerde 'regex' (zie format1)."
-  mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
-}
 
 
 ####################################
