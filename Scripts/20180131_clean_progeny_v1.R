@@ -64,10 +64,16 @@ library(tidyr)
 # additionally needed packages: igraph
 
 # load data
-d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20180606_progeny.xlsx"), col_types = "text"))
+#d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20190206_progeny_ALSonly.xlsx"), col_types = "text"))
+#load(paste0(DIR1,"/Progeny/progeny_20190401.Rdata"))
+df_out <- fread(paste0(DIR1, "/Progeny/progeny_20190402.txt"), sep = "$", na.strings = "NA", colClasses = "character", header = T, quote = "")
+d1 <- copy(df_out)
+datecols <- grep("date|datum", ignore.case = T, colnames(d1), value = T)
+d1[, (datecols) := lapply(.SD, as.Date, format = "%d-%m-%Y"), .SDcols = datecols]
+d1[, (datecols) := lapply(.SD, as.character), .SDcols = datecols]
 
-format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 1))
-dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v1.xlsx"), sheet = 2))
+format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v4.xlsx"), sheet = 1, .name_repair = "minimal"))
+dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v4.xlsx"), sheet = 2, .name_repair = "minimal"))
 
 
 ##########################
@@ -761,8 +767,7 @@ rm(d5)
 
 
 
-
-
+# save(d4, long4, mm, file = "VOEG PATHNAME TOE")
 
 
 # orden longtidunale data (voeg order toe). Dit komt in nieuw script (voor databewerking).
