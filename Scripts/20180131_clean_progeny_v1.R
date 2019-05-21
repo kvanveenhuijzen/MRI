@@ -158,19 +158,20 @@ mm <- c(mm, add_mm(x = summary1, melding = melding1))
 
 # vul eerst even alle ALSnrs (=ID)
 #  ik ga er hierbij van uit dat ALSnr nooit missing is (en zo is het ook ingesteld in de query van 20180130_MRI1)
-ID1 <- rename1[Group=="ID"]
-if(nrow(ID1)!=1){
+ID_form1 <- rename1[Group=="ID"]
+if(nrow(ID_form1)!=1){
   stop("Er is >1 of <1 Identifier aangegeven in rename1")
 }
-d2[, ALSnr_NA:=is.na(ALSnr)]
-d2 <- fill(d2, ALSnr)
+ID1 <- ID_form1[, Rename]
+d2[, (paste0(ID1,"_NA")):=is.na(get(ID1))]
+d2 <- fill(d2, ID1)
 
 # verwijder rijen waarvan ALSnr niet aan Regex voldoet (indien Regex aanwezig is)
-if(!is.na(ID1$Regex)){
+if(!is.na(ID_form1$Regex)){
   #old1 <- countNA(d2, cols = "ALSnr")
   old1 <- nrow(d2)
-  d2 <- d2[grepl(ID1$Regex, ALSnr)]
-  d2[, ALSnr:=factor(ALSnr)] # ik ga er hier voor het gemak even vanuit dat de identifier altijd factor is
+  d2 <- d2[grepl(ID_form1$Regex, get(ID1))]
+  d2[, (ID1):=factor(get(ID1))] # ik ga er hier voor het gemak even vanuit dat de identifier altijd factor is
   new1 <- nrow(d2)
   mm <- c(mm, paste0("In d2, ", old1-new1, "/", old1, " (", roundHJ1((old1-new1)/old1*100, 2), "%)",
                      " rijen verwijderd omdat identifier (i.e. ALSnr) niet voldeed aan de opgegeven regex."))
@@ -181,16 +182,30 @@ if(!is.na(ID1$Regex)){
 regex1 <- rename1[!is.na(Regex)][Rename!="ALSnr"]
 if(nrow(regex1)>0){
   old1 <-countNA(d2, cols = "all")
+  setNA1 <- list()
   for (x in 1:nrow(regex1)){
     val1 <- d2[,get(regex1$Rename[x])]
+    setNA1 <- c(setNA1, 
+                list(d2[grep(regex1$Regex[x], val1, invert = TRUE), c(ID1, regex1$Rename[x]), with = FALSE ]))
     set(d2, i = grep(regex1$Regex[x], val1, invert = TRUE), j = regex1$Rename[x], value = NA)
   }
+  nalog1 <- merge_list_summary(setNA1)
   new1 <- countNA(d2, cols = "all")
   reason1 <- "de waarde van deze variabele(n) niet voorkwam in de gespecificeerde 'regex' (zie format1)."
   mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 }
 
+# Create log for cleansed variables
+clog1 <- list("INCORRECT DATA")
+if(exists("nalog1")) { 
+  if ( nrow(nalog1 > 0)) {
+    clog1 <- c(clog1, list(regex_check = nalog1))
+  }
+}
 
+
+
+  
 #####################################
 ####  CHECK MINIMUM AND MAXIMUM  ####
 #####################################
