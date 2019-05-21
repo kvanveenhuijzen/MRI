@@ -638,7 +638,7 @@ if(all(dep3$value==-1)==FALSE){
 # merge cross & long data (tijdelijk)
 # en voeg kolom met index toe
 # en maak hier een overzicht van (gebeurd allemaal in key1 hieronder)
-d4 <- c(cross = list(d3) , copy(long3))
+d4 <- c(cross = list(copy(d3)) , copy(long3))
 key1 <- lapply(1:length(d4), function(x){
   #overzicht met kolomnamen per groep
   name1 <- names(d4)[x]
@@ -768,25 +768,6 @@ for (x in 1:length(toNA2)){
   }
 }
 
-#meldingen
-new1 <- lapply(1:length(d5), function(x){
-  countNA(d5[[x]], cols = "all")
-})
-names(old1) <- names(d5)
-reason1 <- "deze datum voor of na een andere datum voorkwam (wat onmogelijk is), zoals bijv. DoO voor DoB."
-mm_add <- lapply(1:length(new1), function(x){
-  summaryNA(old1[[x]], new1[[x]], name_data = names(new1)[[x]], reason = reason1)
-})
-mm <- c(mm, mm_add)
-
-# postprocess messages
-# OPMERKING: message2 (hieronder) moeten tzt in mm2 komen (zie issue #19)
-message2 <- message1[which(sapply(message1, dim)[1,] > 0)]
-message2 <- c(paste0("Hieronder volgt een lijst van discrepante dates. ",
-                     "Deze dates zijn op NA gezet, evenals de 'downstream' dates ",
-                     "(zoals beschreven in g2)."), message2)
-mm <- c(mm, list(message2))
-
 #voeg nog 1 check uit (waarschijnlijk overbodig, maar toch maar voor de zekerheid)
 check2 <- identical(sapply(d5, dim), sapply(d4, dim))
 if(check2 == FALSE){
@@ -809,6 +790,52 @@ d4 <- d5$cross
 long4 <- d5[-which(names(d5)=="cross")]
 rm(d5)
 
+#meldingen
+reason1 <- "deze datum voor of na een andere datum voorkwam (wat onmogelijk is), zoals bijv. DoO voor DoB."
+old1 <- countNA(d3, cols = "all")
+new1 <- countNA(d4, cols = "all")
+summ_cross1 <- summaryNA(old1, new1, name_data = "d4", reason = reason1)
+
+summ_long1 <- lapply(seq_along(long3), function(i){
+  old1 <- countNA(long3[[i]], cols = "all")
+  new1 <- countNA(long4[[i]], cols = "all")
+  out1 <- summaryNA(old1, new1, name_data = paste0("long4$", names(long4)[i]), reason = reason1  )
+  return(out1)
+})
+summ_long2 <- rbindlist(summ_long1[sapply(summ_long1, is.data.frame)], fill=T)
+
+mm <- c(mm, list(summ_cross1), list(summ_long2))
+
+# postprocess messages
+# OPMERKING: message2 (hieronder) moeten tzt in mm2 komen (zie issue #19)
+message2 <- message1[which(sapply(message1, dim)[1,] > 0)]
+message2 <- c(paste0("Hieronder volgt een lijst van discrepante dates. ",
+                     "Deze dates zijn op NA gezet, evenals de 'downstream' dates ",
+                     "(zoals beschreven in g2)."), message2)
+clog1 <- c(clog1, list(date_order_check = message2))
+
+
+# change clog column names to progeny original.
+
+setnames(d2, old = rename1[!is.na(Rename)]$Original, new = rename1[!is.na(Rename)]$Rename)
+mm <- c(mm, "GOED: kolomnamen in d2 aangepast (conform format2).")
+
+clog2 <- lapply(2:length(clog1), function(i){
+  L1 <- lapply(clog1[[i]], function(j){
+    out1 <- copy(j)
+    if (is.data.frame(out1)){
+      oldnames1 <- colnames(out1)
+      newnames1 <- format2[which(format2$Rename  %in% oldnames1 | 
+                                   format2$Rename  %in% paste0(oldnames1, "@w")), Original]
+      setnames(out1, old = oldnames1, new = newnames1)
+      out1 <- as.data.frame(out1) # optional, for easier printing.
+    }
+    return(out1)
+  })
+  return(L1)
+})
+clog2 <- c(clog1[1], clog2)
+names(clog2) <- names(clog1)
 
 
 # save(d4, long4, mm, file = "VOEG PATHNAME TOE")
