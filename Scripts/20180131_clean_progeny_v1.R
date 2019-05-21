@@ -86,9 +86,6 @@ d2 <- copy(d1)
 # detele in format1 alle rijen waarin 1 # staat
 format2 <- format1[ifelse(rowSums(format1 == "#", na.rm = TRUE)>0, FALSE, TRUE),]
 
-# zet Rename van identifier op ALSnr
-format2[Group=="ID", Rename:="ALSnr"]
-
 #maak long format van dependencies (sheet 2 in format1.xlsx)
 dep2 <- copy(dep1)
 colnames(dep2)[1] <- "to"
@@ -100,12 +97,15 @@ dep2$uitleg <- ifelse(dep2$value == -1, "'from' komt eerder dan 'to'.",
 # maak meldingen file
 mm <- list("MELDINGEN")
 
+# Create log for cleansed variables
+clog1 <- list("INCORRECT DATA")
+
 # check of alle ID's uniek zijn
 uniq1 <- na.omit(d2[, format2[Group=="ID"]$Original, with = FALSE])
 if(!identical(nrow(uniq1), nrow(unique(uniq1)))){
   stop("Identifier is niet uniek!! Oplossen voordat je verder gaat.")
 }else{
-  mm <- c(mm, "GOED: Identifier (ALSnr) is uniek.")
+  mm <- c(mm, paste0("GOED: Identifier (", format2[Group=="ID"]$Rename, ") is uniek."))
 }
 
 
@@ -163,12 +163,12 @@ if(nrow(ID_form1)!=1){
   stop("Er is >1 of <1 Identifier aangegeven in rename1")
 }
 ID1 <- ID_form1[, Rename]
-d2[, (paste0(ID1,"_NA")):=is.na(get(ID1))]
+ID1_NA <- paste0(ID1, "_NA")
+d2[, (ID1_NA):=is.na(get(ID1))]
 d2 <- fill(d2, ID1)
 
 # verwijder rijen waarvan ALSnr niet aan Regex voldoet (indien Regex aanwezig is)
 if(!is.na(ID_form1$Regex)){
-  #old1 <- countNA(d2, cols = "ALSnr")
   old1 <- nrow(d2)
   d2 <- d2[grepl(ID_form1$Regex, get(ID1))]
   d2[, (ID1):=factor(get(ID1))] # ik ga er hier voor het gemak even vanuit dat de identifier altijd factor is
@@ -179,33 +179,26 @@ if(!is.na(ID_form1$Regex)){
 }
 
 # check overige regex (indien aanwezig)
-regex1 <- rename1[!is.na(Regex)][Rename!="ALSnr"]
+regex1 <- rename1[!is.na(Regex)][!(Rename %in% ID1)]
 if(nrow(regex1)>0){
   old1 <-countNA(d2, cols = "all")
-  setNA1 <- list()
+  logNA1 <- list()
   for (x in 1:nrow(regex1)){
     val1 <- d2[,get(regex1$Rename[x])]
-    setNA1 <- c(setNA1, 
-                list(d2[grep(regex1$Regex[x], val1, invert = TRUE), c(ID1, regex1$Rename[x]), with = FALSE ]))
-    set(d2, i = grep(regex1$Regex[x], val1, invert = TRUE), j = regex1$Rename[x], value = NA)
+    toNA1 <- grep(regex1$Regex[x], val1, invert = TRUE)
+    if (length(toNA1) > 0){
+      logNA1 <- c(logNA1, list(d2[toNA1, c(ID1, regex1$Rename[x]), with = FALSE ]))
+    }
+    set(d2, i = toNA1, j = regex1$Rename[x], value = NA)
   }
-  nalog1 <- merge_list_summary(setNA1)
+  if ( length(logNA1 > 0)) {
+    clog1 <- c(clog1, list(regex_check = logNA1))
+  }
   new1 <- countNA(d2, cols = "all")
   reason1 <- "de waarde van deze variabele(n) niet voorkwam in de gespecificeerde 'regex' (zie format1)."
   mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 }
 
-# Create log for cleansed variables
-clog1 <- list("INCORRECT DATA")
-if(exists("nalog1")) { 
-  if ( nrow(nalog1 > 0)) {
-    clog1 <- c(clog1, list(regex_check = nalog1))
-  }
-}
-
-
-
-  
 #####################################
 ####  CHECK MINIMUM AND MAXIMUM  ####
 #####################################
@@ -215,43 +208,63 @@ rename1_date1 <- rename1[Class=="Date"]
 rename1_nondate1 <- rename1[Class!="Date"]
 
 #controleer minimum en maximum voor non-dates
-old1 <- countNA(d2, cols = "all")
-nalog1 <- list()
-for (x in 1:nrow(rename1_nondate1)){
-  min1 <- minmax(rename1_nondate1$Minimum[x])
-  max1 <- minmax(rename1_nondate1$Maximum[x])
-  if(!is.na(min1)){
-    imin1 <- which(d2[[rename1_nondate1$Rename[x]]] < min1)
-    j1 <- rename1_nondate1$Rename[x]
-    #minlog1 <-  d2[imin1, c(..j1]
-    set(d2, i = imin1, j = j1, value = NA)
+if(nrow(rename1_nondate1)>0){
+  old1 <- countNA(d2, cols = "all")
+  logNA1 <- list()
+  for (x in 1:nrow(rename1_nondate1)){
+    min1 <- minmax(rename1_nondate1$Minimum[x])
+    max1 <- minmax(rename1_nondate1$Maximum[x])
+    
+    # Als er een minimum of maximum is ingesteld, dan kijken of waardes deze overschrijven
+    if(!is.na(min1)| !is.na(max1)){
+      
+      # Als de minima of maxima overschreden worden, dan staat het rijnummer in toNA2
+      toNA1 <- data.table(imin1 = d2[[rename1_nondate1$Rename[x]]] < min1,
+                          imax1 = d2[[rename1_nondate1$Rename[x]]] > max1)
+      toNA2 <- which(apply(toNA1, 1 ,any, na.rm = TRUE))
+      if (length(toNA2) > 0){
+        logNA1 <-  c(logNA1, list(d2[toNA2, c(ID1, rename1_nondate1$Rename[x]), with = FALSE]))
+      }
+      set(d2, i = toNA2, j = rename1_nondate1$Rename[x], value = NA)
+    }
   }
-  if(!is.na(max1)){
-    imax1 <- which(d2[[rename1_nondate1$Rename[x]]] > max1)
-    j1 <- rename1_nondate1$Rename[x]
-    maxlog1 <- d2[imax1, ..j1]
-    set(d2, i = imax1, j = j1, value = NA)
+  if (length(logNA1) >0) {
+    clog1 <- c(clog1, list(minmax_check = logNA1))
   }
-  #nalog1 <- c(nalog1, list(rbind(minlog1,maxlog1)))
+  
+  new1 <- countNA(d2, cols = "all")
+  reason1 <- "de waarde van deze variabele(n) niet tussen de gedefinieerde minimale en maximale waarden lag."
+  mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 }
-new1 <- countNA(d2, cols = "all")
-reason1 <- "de waarde van deze variabele(n) niet tussen de gedefinieerde minimale en maximale waarden lag."
-mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 
 #controleer minimum en maximum voor dates
-old1 <- countNA(d2, cols = "all")
-for (x in 1:nrow(rename1_date1)){
-  min1 <- minmax(rename1_date1$Minimum[x], date = TRUE)
-  max1 <- minmax(rename1_date1$Maximum[x], date = TRUE)
-  if(!is.na(min1)){
-    set(d2, i = which(d2[[rename1_date1$Rename[x]]] < min1), j = rename1_date1$Rename[x], value = NA)
+if(nrow(rename1_date1)>0){
+  old1 <- countNA(d2, cols = "all")
+  logNA1 <- list()
+  for (x in 1:nrow(rename1_date1)){
+    min1 <- minmax(rename1_date1$Minimum[x], date = TRUE)
+    max1 <- minmax(rename1_date1$Maximum[x], date = TRUE)
+    
+    # Als er een minimum of maximum is ingesteld, dan kijken of waardes deze overschrijven
+    if(!is.na(min1)| !is.na(max1)){
+      
+      # Als de minima of maxima overschreden worden, dan staat het rijnummer in toNA2
+      toNA1 <- data.table(imin1 = d2[[rename1_date1$Rename[x]]] < min1,
+                          imax1 = d2[[rename1_date1$Rename[x]]] > max1)
+      toNA2 <- which(apply(toNA1, 1 ,any, na.rm = TRUE))
+      if (length(toNA2) > 0){
+        logNA1 <-  c(logNA1, list(d2[toNA2, c(ID1, rename1_date1$Rename[x]), with = FALSE]))
+      }
+      set(d2, i = toNA2, j = rename1_date1$Rename[x], value = NA)
+    }
   }
-  if(!is.na(max1)){
-    set(d2, i = which(d2[[rename1_date1$Rename[x]]] > max1), j = rename1_date1$Rename[x], value = NA)
+  if (length(logNA1) > 0) {
+    clog1 <- c(clog1, list(date_minmax_check = logNA1))
   }
+  new1 <- countNA(d2, cols = "all")
+  reason1 <- "de waarde van deze variabele(n) niet tussen de gedefinieerde minimale en maximale waarden lag."
+  mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 }
-new1 <- countNA(d2, cols = "all")
-mm <- c(mm, list(summaryNA(old1, new1, name_data = "d2", reason = reason1)))
 
 
 #################################
@@ -263,37 +276,45 @@ val1 <- rename1[!is.na(Possible_values)]
 val2 <- strsplit(val1$Possible_values, split = "\\|")
 old1 <- countNA(d2, cols = "all")
 
-d2a <- copy(d2) # temporary for testing
 meld1 <- list()
 
-for (x in 1:length(val2)){
-  Case <- !(d2[[val1$Rename[x]]] %in% val2[[x]])
-  IgnoreCase <- !(tolower(d2[[val1$Rename[x]]]) %in% tolower(val2[[x]]))
-  
-  # if doesnt exist at all, set to NA
-  set(d2, i = which(Case & IgnoreCase), j = val1$Rename[x], value = NA)
-  
-  # if exists but in wrong case, set to right case
-  if (length(which(Case & !IgnoreCase)) > 0){
+if (length(val2) > 0){
+  logNA1 <- list()
+  for (x in 1:length(val2)){
+    Case <- !(d2[[val1$Rename[x]]] %in% val2[[x]])
+    IgnoreCase <- !(tolower(d2[[val1$Rename[x]]]) %in% tolower(val2[[x]]))
+    TestNA <- !is.na(d2[[val1$Rename[x]]])
     
-    # Use grep with ignore.case to find the right value. Add regex so no partial strings are matched.
-    reg1 <- paste0("^",d2[which(Case & !IgnoreCase),get(val1$Rename[x])],"$")
-    newval1 <- unlist(lapply(reg1 , grep, x = val2[[x]], ignore.case =  TRUE, value = TRUE))
-    newval1 <- factor(newval1, levels = levels(x = d2[,get(val1$Rename[x])]))
+    # if doesnt exist at all, set to NA
+    if (length(which(Case & IgnoreCase & TestNA)) > 0){
+      logNA1 <- c(logNA1, list(d2[which(Case & IgnoreCase  & TestNA), c(ID1, val1$Rename[x]), with = FALSE]))
+    }
+    set(d2, i = which(Case & IgnoreCase & TestNA), j = val1$Rename[x], value = NA)
     
-    # NOG GEEN TESTS INGEBOUWD
-    d2[which(Case & !IgnoreCase)] <- d2[which(Case & !IgnoreCase)][,(val1$Rename[x]) := newval1]
-    
-    # melding? 
-    meld1 <- c(meld1,paste0("Reformatted ", length(newval1), " values for column ", val1$Rename[x], 
-                            ", because of inconsistent use of lower/upper case letters."))
+    # if exists but in wrong case, set to right case
+    if (length(which(Case & !IgnoreCase)) > 0){
+      
+      # Use grep with ignore.case to find the right value. Add regex so no partial strings are matched.
+      reg1 <- paste0("^",d2[which(Case & !IgnoreCase),get(val1$Rename[x])],"$")
+      newval1 <- unlist(lapply(reg1 , grep, x = val2[[x]], ignore.case =  TRUE, value = TRUE))
+      newval1 <- factor(newval1, levels = levels(x = d2[,get(val1$Rename[x])]))
+      
+      # NOG GEEN TESTS INGEBOUWD
+      d2[which(Case & !IgnoreCase)] <- d2[which(Case & !IgnoreCase)][,(val1$Rename[x]) := newval1]
+      
+      # melding? 
+      meld1 <- c(meld1,paste0("Reformatted ", length(newval1), " values for column ", val1$Rename[x], 
+                              ", because of inconsistent use of lower/upper case letters."))
+    }
+  }
+  if (length(logNA1) > 0) {
+    clog1 <- c(clog1, list(posval_check = logNA1))
   }
 }
 
 # Drop all unused factor levels.
 fac.cols = sapply(d2, is.factor)
 d2[, names(d2)[fac.cols] := lapply(.SD, droplevels, exclude = NA), .SDcols = fac.cols]
-
 
 new1 <- countNA(d2, cols = "all")
 reason1 <- "de waarde van deze variabele(n) niet voorkwam in de 'possible values'."
@@ -306,11 +327,11 @@ mm <- c(mm, meld1)
 ####################################
 
 # maak overzicht met long data
-long1 <- d2[ALSnr_NA==TRUE, ] #potential long dataset
+long1 <- d2[get(ID1_NA)==TRUE, ] #potential long dataset
 long2 <- long1[, colSums(!is.na(long1)) > 0, with = FALSE] # long dataset
 
 # maak in long format groepen van data die bij elkaar hoort
-a1 <- which(!colnames(long2) %in% c("ALSnr", "ALSnr_NA"))
+a1 <- which(!colnames(long2) %in% c(ID1, ID1_NA))
 l1 <- lapply(a1, function(x){
   out1 <- which(!is.na(long2[, ..x]))
   return(out1)
@@ -335,7 +356,7 @@ l2 <- lapply(gr1, function(x){
   
   #maak wat object en (nieuw) kolomnamen aan
   progenyFU1 <- paste0("ProgenyFU_", group1)
-  coln1 <- c("ALSnr", coln0)
+  coln1 <- c(ID1, coln0)
   long3 <- long2[, coln1, with = FALSE]
   
   #verwijder kolommen met alleen NA's
@@ -350,7 +371,7 @@ l2 <- lapply(gr1, function(x){
                   "percentage wat je over houdt.")
   
   #voeg ProgenyFU_<var> toe een longitudinale datasets
-  long3[, ProgenyFU_:=as.character(seq_len(.N)), by = ALSnr]
+  long3[, ProgenyFU_:=as.character(seq_len(.N)), by = ID1]
   setnames(long3, old = "ProgenyFU_", new = progenyFU1)
   
   #return
@@ -365,7 +386,7 @@ names(long3) <- unlist(lapply(l2, "[[", 1))
 
 # cross data
 coln1 <- unlist(unname(lapply(long3, function(x) colnames(x))))
-coln1 <- coln1[-which(coln1=="ALSnr")]
+coln1 <- coln1[-which(coln1 %in% ID1)]
 coln2 <- colnames(d2)[!colnames(d2) %in% coln1]
 d3 <- d2[, ..coln2]
 d3 <- d3[rowSums(!is.na(d3))>2,] # >2 omdat ALSnr en ALSnr_NA er altijd in staan
@@ -408,7 +429,7 @@ if(length(names(long3)[test1]) > 0){
     
     # Verwijder kolommen uit cross data.
     coln1 <- colnames(d3)[matchcols1]
-    coln1 <- coln1[-which(coln1=="ALSnr")]
+    coln1 <- coln1[-which(coln1 %in% ID1)]
     coln2 <- colnames(d3)[!colnames(d3) %in% coln1]
     d3 <- d3[, ..coln2]
     d3 <- d3[rowSums(!is.na(d3)) > 2,] # >2 omdat ALSnr en ALSnr_NA er altijd in staan
@@ -505,7 +526,7 @@ if(any(hier3$check_group==FALSE)){
 # Resulteert in een lijst van long format data.tables
 wl_transform1 <- sapply(unique(hier3[, Group]), function(i){
   dt1 <- hier3[Group==i,]
-  wlong1 <- d3[, c("ALSnr", dt1[, Var]), with = FALSE]
+  wlong1 <- d3[, c(ID1, dt1[, Var]), with = FALSE]
   
   # Groepeer per subgroup voor melt, deze moeten elk hun eigen kolom krijgen.
   subgroups1 <- unique(dt1[, subGroup])
@@ -524,7 +545,7 @@ wl_transform1 <- sapply(unique(hier3[, Group]), function(i){
   if(length(date2)>0){
     #nu alleen rekening gehouden met ALSnr en datum, later in script NIET ook nog rekening houd met
     # hoogte van score (indien datum mist). Omdat hoogte van score niet zo betrouwbaar is voor tijd van afname (iom Harold).
-    setorderv(x = wlong3, cols = c("ALSnr", date1), order = c(1, 1), na.last = TRUE)
+    setorderv(x = wlong3, cols = c(ID1, date1), order = c(1, 1), na.last = TRUE)
     
     #verwijder kolom met order (omdat het beter is om order van datum aan te houden)
     # order later pas toevoegen als je checks op datums afgerond hebt.
@@ -629,7 +650,7 @@ key1 <- lapply(1:length(d4), function(x){
   setnames(d4[[x]], old = "index1", new = paste0("@", names(d4)[x]))
   
   #setkey
-  setkey(d4[[x]], ALSnr)
+  setkeyv(d4[[x]], ID1)
   
   return(out1)
 })
@@ -639,7 +660,7 @@ key2 <- rbindlist(key1)
 # Omdat een cartesian merge bij een groot aantal longitudinale datasets enorm wordt, worden nu alleen de
 # datum variabelen geselecteerd.
 list_cols1 <- lapply(d4, colnames)
-list_cols2 <- lapply(list_cols1, grep, pattern="^ALSnr$|^Do|^@", value = T)
+list_cols2 <- lapply(list_cols1, grep, pattern=paste0("^", ID1, "$|^Do|^@"), value = T) # tzt iets doen aan de hardcoded 'Do' grep
 merge1a <- lapply(seq_along(d4), function(i){
   dt <- d4[[i]]
   cols <- list_cols2[[i]]
@@ -692,7 +713,7 @@ setorder(dep4, -closeness_from, -closeness_to)
 
 # welke data in dep4 is long?
 long_names <- unique(unlist(lapply(long3, colnames)))
-long_names <- long_names[-which(long_names=="ALSnr")]
+long_names <- long_names[-which(long_names %in% ID1)]
 dep4[, long_from:=from %in% long_names]
 dep4[, long_to:=to %in% long_names]
 
@@ -709,7 +730,7 @@ for (x in 1:nrow(dep4)){
   
   #make messages
   message1[[x]] <- unique(merge1[get(dep4$from[x]) > get(dep4$to[x]),
-                                 j = c("ALSnr", dep4$from[x], dep4$to[x]), with = FALSE])
+                                 j = c(ID1, dep4$from[x], dep4$to[x]), with = FALSE])
   
   #indices
   row1 <- merge1[get(dep4$from[x]) > get(dep4$to[x]), which = TRUE]
