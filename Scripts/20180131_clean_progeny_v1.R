@@ -308,7 +308,7 @@ if (length(val2) > 0){
     }
   }
   if (length(logNA1) > 0) {
-    clog1 <- c(clog1, list(posval_check = logNA1))
+    clog1 <- c(clog1, list(categories_check = logNA1))
   }
 }
 
