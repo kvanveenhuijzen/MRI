@@ -76,8 +76,8 @@ d1[, (datecols) := lapply(.SD, as.Date, format = "%d-%m-%Y"), .SDcols = datecols
 d1[, (datecols) := lapply(.SD, as.character), .SDcols = datecols]
 #######
 
-format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v5.xlsx"), sheet = 1, .name_repair = "minimal"))
-dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v5.xlsx"), sheet = 2, .name_repair = "minimal"))
+format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v2.xlsx"), sheet = 1, .name_repair = "minimal"))
+dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v2.xlsx"), sheet = 2, .name_repair = "minimal"))
 
 
 ##########################
