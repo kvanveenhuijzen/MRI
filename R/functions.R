@@ -279,7 +279,15 @@ longest_substring_vec <- function(a, b = NULL, default = NA_character_, matrix_o
 merge_list <- function(...) merge(..., all = TRUE)
 merge_list_cart <- function(...) merge(..., all = TRUE, allow.cartesian = TRUE)
 
-
+# Helaas niet in hetzelfde format omdat hier Reduce binnen de functie moet worden gebruikt. t.z.t aanpassen?
+# Creert overzichtelijk format van waardes die gecleand moeten worden.
+merge_list_summary <- function(...) {
+  require(data.table)
+  commoncols <- Reduce(intersect, lapply(..., colnames))
+  run.seq <- function(x) as.numeric(ave(do.call(paste, x), x, FUN = seq_along))
+  L1 <- lapply(..., function(x) cbind(x, run.seq = run.seq(x[, commoncols, with = FALSE])))
+  Reduce(function(...) merge(..., all = TRUE), L1)[,-("run.seq")]
+}
 
 
 ###########################
