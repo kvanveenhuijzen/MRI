@@ -66,14 +66,18 @@ library(tidyr)
 # load data
 #d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20190206_progeny_ALSonly.xlsx"), col_types = "text"))
 #load(paste0(DIR1,"/Progeny/progeny_20190401.Rdata"))
-df_out <- fread(paste0(DIR1, "/Progeny/progeny_20190402.txt"), sep = "$", na.strings = "NA", colClasses = "character", header = T, quote = "")
+df_out <- fread(paste0(DIR1, "/Progeny/progeny_20190522.txt"), sep = "$", na.strings = "NA", colClasses = "character", header = T, quote = "")
 d1 <- copy(df_out)
+
+#######
+# temporary addition to format dates. In the future possibly add an automatic date format recognition
 datecols <- grep("date|datum", ignore.case = T, colnames(d1), value = T)
 d1[, (datecols) := lapply(.SD, as.Date, format = "%d-%m-%Y"), .SDcols = datecols]
 d1[, (datecols) := lapply(.SD, as.character), .SDcols = datecols]
+#######
 
-format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v4.xlsx"), sheet = 1, .name_repair = "minimal"))
-dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v4.xlsx"), sheet = 2, .name_repair = "minimal"))
+format1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v5.xlsx"), sheet = 1, .name_repair = "minimal"))
+dep1 <- data.table(read_excel(path = paste0(DIR1, "/Data/Format_v5.xlsx"), sheet = 2, .name_repair = "minimal"))
 
 
 ##########################
@@ -817,16 +821,14 @@ clog1 <- c(clog1, list(date_order_check = message2))
 
 # change clog column names to progeny original.
 
-setnames(d2, old = rename1[!is.na(Rename)]$Original, new = rename1[!is.na(Rename)]$Rename)
-mm <- c(mm, "GOED: kolomnamen in d2 aangepast (conform format2).")
-
 clog2 <- lapply(2:length(clog1), function(i){
   L1 <- lapply(clog1[[i]], function(j){
     out1 <- copy(j)
     if (is.data.frame(out1)){
       oldnames1 <- colnames(out1)
-      newnames1 <- format2[which(format2$Rename  %in% oldnames1 | 
-                                   format2$Rename  %in% paste0(oldnames1, "@w")), Original]
+      match_pos <- match(oldnames1, format2$Rename)
+      match_pos[is.na(match_pos)] <- match(paste0(oldnames1, "@w"), format2$Rename)[is.na(match_pos)]
+      newnames1 <- format2[match_pos, Original]
       setnames(out1, old = oldnames1, new = newnames1)
       out1 <- as.data.frame(out1) # optional, for easier printing.
     }
@@ -838,7 +840,7 @@ clog2 <- c(clog1[1], clog2)
 names(clog2) <- names(clog1)
 
 
-# save(d4, long4, mm, file = "VOEG PATHNAME TOE")
+# save(d4, long4, mm, clog2, file = "/Users/htan4/Documents/Data/Clinical_data/ResearchR_output20190522.Rdata")
 
 
 # orden longtidunale data (voeg order toe). Dit komt in nieuw script (voor databewerking).
