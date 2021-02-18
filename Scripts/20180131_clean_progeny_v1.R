@@ -31,7 +31,8 @@
 
 # package dir
 #DIR1 <- "/Volumes/Samsung_T1/Vakantie/HJ/Imaging/R_packages/MRI" # HJ
-DIR1 <- "/Users/htan4/Documents/Rprojects/ResearchR" # Harold
+#DIR1 <- "/Users/htan4/Documents/Rprojects/ResearchR" # Harold
+DIR1 <- "/Users/kveenhu3/Documents/Research/MRI/MRI_progenyClean" #Kevin
 
 # source settings
 source(paste0(DIR1, "/R/settings.R"))
@@ -66,7 +67,7 @@ library(tidyr)
 # load data
 #d1 <- data.table(read_excel(path = paste0(DIR1, "/Progeny/20190206_progeny_ALSonly.xlsx"), col_types = "text"))
 #load(paste0(DIR1,"/Progeny/progeny_20190401.Rdata"))
-df_out <- fread(paste0(DIR1, "/Progeny/progeny_20190522.txt"), sep = "$", na.strings = "NA", colClasses = "character", header = T, quote = "")
+df_out <- fread(paste0(DIR1, "/Progeny/progeny_20210209"), sep = "$", na.strings = "NA", colClasses = "character", header = T, quote = "")
 d1 <- copy(df_out)
 
 #######
